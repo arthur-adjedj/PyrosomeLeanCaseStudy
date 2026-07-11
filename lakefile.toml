@@ -1,0 +1,24 @@
+name = "PyroLeanExamples"
+version = "0.1.0"
+defaultTargets = ["pyroleanexamples"]
+
+[[lean_lib]]
+name = "PyroLeanExamples"
+
+[[lean_exe]]
+name = "pyroleanexamples"
+root = "Main"
+
+[[require]]
+name = "aesop"
+scope = "leanprover-community"
+git = "https://github.com/leanprover-community/aesop"
+rev = "master"
+
+[[require]]
+name = "LeanALaCarte"
+path = "/home/belazy/Projects/LeanALaCarte"
+
+[[require]]
+name = "mathlib"
+scope = "leanprover-community"
