@@ -321,24 +321,18 @@ abbrev STLC.Tag.ToData : (t : STLC.Tag) → (A: t.Data) → t.toCPS.Data
 abbrev STLC.ToExprType (Γ : STLC.Ctx) (t : STLC.Tag) (A: t.Data) : Type :=
   CPS.Expr (ToCtx Γ t A) t.toCPS (t.ToData A)
 
-set_option backward.proofsInPublic true
-
 def STLC.Expr.toCPS : Expr Γ t A → STLC.ToExprType Γ t A
   | var ⟨n,h₁⟩ h₂ => .var ⟨n,by simp [Ctx.toCPS, *]⟩ (by simp [Ctx.toCPS, *]; congr)
   | ret v => .app .zero v.toCPS.lift
   | lam e => .lam (.and_elim .zero (e.toCPS.subst CPS.Sub.id.wk.lift.lift))
   | @app _ A B e e' => by
     have e := e.toCPS.lam
-    let e := cast (congr_arg _ (CPS.Ty.not_not _)) e
     have e' := e'.toCPS.lam
-    let e' :=  cast (congr_arg _ (CPS.Ty.not_not _)) e'
+    rw [CPS.Ty.not_not] at e e'
     refine CPS.Expr.app (e.subst CPS.Sub.id.wk) (.and_intro (e'.subst CPS.Sub.id.wk) CPS.Expr.zero)
-
-
 
 theorem CPS.Equiv.ren (e₁ e₂ : CPS.Expr Γ t A) : CPS.Equiv e₁ e₂ → CPS.Equiv (e₁.ren r) (e₂.ren r) := by
  sorry
-
 
 theorem CPS.Equiv.subst (e₁ e₂ : CPS.Expr Γ t A) : CPS.Equiv e₁ e₂ → CPS.Equiv (e₁.subst σ) (e₂.subst σ) := sorry
 
