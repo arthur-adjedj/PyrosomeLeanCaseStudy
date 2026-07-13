@@ -331,17 +331,52 @@ def STLC.Expr.toCPS : Expr Γ t A → STLC.ToExprType Γ t A
     rw [CPS.Ty.not_not] at e e'
     refine CPS.Expr.app (e.subst CPS.Sub.id.wk) (.and_intro (e'.subst CPS.Sub.id.wk) CPS.Expr.zero)
 
-theorem CPS.Equiv.ren (e₁ e₂ : CPS.Expr Γ t A) : CPS.Equiv e₁ e₂ → CPS.Equiv (e₁.ren r) (e₂.ren r) := by
- sorry
+theorem CPS.Expr.lift_ren_lift {r : Ren Γ Δ} (v : Expr Δ t A): Expr.ren r.lift v.lift = (Expr.ren r v).lift (B := B) := by
+  induction v
+  case var => rfl
+  case app ih₁ ih₂ =>
+    rw [ren,lift,ren,ren, lift]
+    -- apply CPS.Equiv.app
+    sorry
+  all_goals sorry
 
-theorem CPS.Equiv.subst (e₁ e₂ : CPS.Expr Γ t A) : CPS.Equiv e₁ e₂ → CPS.Equiv (e₁.subst σ) (e₂.subst σ) := sorry
+theorem CPS.Equiv.ren {r : Ren Γ Δ} (e₁ e₂ : CPS.Expr Δ t A) : CPS.Equiv e₁ e₂ → CPS.Equiv (e₁.ren r) (e₂.ren r) := by
+  intro h
+  induction h generalizing Γ
+  case refl => exact .refl
+  case symm ih => exact .symm ih
+  case trans ih₁ ih₂ => exact .trans ih₁ ih₂
+  case lam ih => exact CPS.Equiv.lam ih
+  case app ih₁ ih₂ => exact CPS.Equiv.app ih₁ ih₂
+  case and_intro ih₁ ih₂ => exact CPS.Equiv.and_intro ih₁ ih₂
+  case and_elim ih₁ ih₂ => exact CPS.Equiv.and_elim ih₁ ih₂
+  case eta v =>
+    simp [Expr.ren, Expr.zero, CPS.Expr.lift_ren_lift]
+    exact CPS.Equiv.eta (v := (Expr.ren r v))
+  case eta_and => sorry
+  case beta => sorry
+
+theorem CPS.Equiv.subst {σ : Sub Γ Δ} (e₁ e₂ : CPS.Expr Δ t A)  : CPS.Equiv e₁ e₂ → CPS.Equiv (e₁.subst σ) (e₂.subst σ) := by
+  intro h
+  induction h generalizing Γ
+  case refl => exact .refl
+  case symm ih => exact .symm ih
+  case trans ih₁ ih₂ => exact .trans ih₁ ih₂
+  case lam ih => exact CPS.Equiv.lam ih
+  case app ih₁ ih₂ => exact CPS.Equiv.app ih₁ ih₂
+  case and_intro ih₁ ih₂ => exact CPS.Equiv.and_intro ih₁ ih₂
+  case and_elim ih₁ ih₂ => exact CPS.Equiv.and_elim ih₁ ih₂
+  case eta v => sorry
+    -- simp [Expr.ren, Expr.zero, CPS.Expr.lift_ren_lift]
+    -- exact CPS.Equiv.eta (v := (Expr.subst σ v))
+  case eta_and => sorry
+  case beta => sorry
 
 theorem CPS.Equiv.cast  (h₁ : Expr Γ t A = Expr Γ t B) (h₂ : A = B) (e₁ e₂ : CPS.Expr Γ t A) : CPS.Equiv e₁ e₂ →
   CPS.Equiv (cast h₁ e₁) (cast h₁ e₂) := by
   cases h₂
   cases h₁
   exact id
-
 
 theorem STLC.Equiv.toCPS (e e' : Expr Γ t A) (h : Equiv e e') : CPS.Equiv e.toCPS e'.toCPS := by
   induction h

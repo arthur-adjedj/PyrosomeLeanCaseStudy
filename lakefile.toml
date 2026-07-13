@@ -17,7 +17,9 @@ rev = "master"
 
 [[require]]
 name = "LeanALaCarte"
-path = "/home/belazy/Projects/LeanALaCarte"
+scope = "arthur-adjedj"
+git = "https://github.com/arthur-adjedj/LeanALaCarte"
+rev = "main"
 
 [[require]]
 name = "mathlib"
