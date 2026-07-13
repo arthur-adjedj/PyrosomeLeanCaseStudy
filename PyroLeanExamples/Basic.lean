@@ -331,14 +331,32 @@ def STLC.Expr.toCPS : Expr Γ t A → STLC.ToExprType Γ t A
     rw [CPS.Ty.not_not] at e e'
     refine CPS.Expr.app (e.subst CPS.Sub.id.wk) (.and_intro (e'.subst CPS.Sub.id.wk) CPS.Expr.zero)
 
+def CPS.Ren.comp (r₁ : Ren Γ Δ) (r₂ : Ren Δ Φ) : Ren Γ Φ where
+  val := r₁.val ∘ r₂.val
+  property n := r₂.property n |>.trans (r₁.property (r₂.val n))
+
+theorem CPS.Expr.ren_of_ren_ren  {r₁ : Ren Γ Δ} {r₂ : Ren Δ Φ} (v : Expr Φ t A) : (v.ren r₂).ren r₁ = v.ren (r₁.comp r₂) := by
+  induction v generalizing r₁ Γ Δ <;> simp [ren, Ren.comp, *]
+  case lam =>
+    congr 2
+    funext x
+    obtain ⟨x,_⟩ := x
+    cases x <;> rfl
+  case and_elim =>
+    congr 2
+    funext x
+    obtain ⟨x,_⟩ := x
+    cases x
+    case zero => rfl
+    case succ x _ => cases x <;> rfl
+
+theorem CPS.Expr.ren_lift_wk {r : Ren Γ Δ} : (r.lift.comp Ren.wk) = ((Ren.wk (A := B)).comp r) := by
+  simp [Ren.comp, Ren.lift, Ren.wk]
+  rfl
+
 theorem CPS.Expr.lift_ren_lift {r : Ren Γ Δ} (v : Expr Δ t A): Expr.ren r.lift v.lift = (Expr.ren r v).lift (B := B) := by
-  induction v
-  case var => rfl
-  case app ih₁ ih₂ =>
-    rw [ren,lift,ren,ren, lift]
-    -- apply CPS.Equiv.app
-    sorry
-  all_goals sorry
+  rw [Expr.lift, Expr.lift, CPS.Expr.ren_of_ren_ren, CPS.Expr.ren_of_ren_ren]
+  rfl
 
 theorem CPS.Equiv.ren {r : Ren Γ Δ} (e₁ e₂ : CPS.Expr Δ t A) : CPS.Equiv e₁ e₂ → CPS.Equiv (e₁.ren r) (e₂.ren r) := by
   intro h
@@ -353,8 +371,43 @@ theorem CPS.Equiv.ren {r : Ren Γ Δ} (e₁ e₂ : CPS.Expr Δ t A) : CPS.Equiv 
   case eta v =>
     simp [Expr.ren, Expr.zero, CPS.Expr.lift_ren_lift]
     exact CPS.Equiv.eta (v := (Expr.ren r v))
-  case eta_and => sorry
-  case beta => sorry
+  case eta_and =>
+    simp [Expr.ren]
+    apply CPS.Equiv.trans
+    · apply CPS.Equiv.eta_and
+    · rename_i fst snd e
+      have : (Expr.subst ((Sub.id.snoc (Expr.ren r snd)).snoc (Expr.ren r fst)) (Expr.ren r.lift.lift e)) = (Expr.ren r (Expr.subst ((Sub.id.snoc snd).snoc fst) e)) := sorry
+      rw [this]
+      apply CPS.Equiv.refl
+  case beta =>
+    simp [Expr.ren]
+    apply CPS.Equiv.trans
+    · apply CPS.Equiv.beta
+    · rename_i e v
+      have : (Expr.subst (Sub.id.snoc (Expr.ren r v)) (Expr.ren r.lift e)) = (Expr.ren r (Expr.subst (Sub.id.snoc v) e)) := sorry
+      rw [this]
+      apply CPS.Equiv.refl
+
+abbrev CPS.Sub.comp (σ₁ : Sub Γ Δ) (σ₂ : Sub Δ Φ) : Sub Γ Φ :=
+  fun n => (σ₂ n).subst σ₁
+
+
+theorem CPS.Expr.sub_lift_wk {σ : Sub Γ Δ} {τ : Sub  Δ Φ}: (σ.lift (A := A) |>.comp (Sub.wk (A := A) τ)) = ((Sub.wk (A := A) σ).comp τ) := by
+  sorry
+
+theorem CPS.Sub.comp_lift {σ₁ : Sub Γ Δ} {σ₂ : Sub Δ Φ} : (σ₁.comp σ₂).lift (A := A) = σ₁.lift.comp σ₂.lift := by
+  funext x
+  unfold comp lift
+
+theorem CPS.Expr.subst_of_subst_subst  {σ₁ : Sub Γ Δ} {σ₂ : Sub Δ Φ} (v : Expr Φ t A) : (v.subst σ₂).subst σ₁ = v.subst (σ₁.comp σ₂) := by
+  induction v generalizing σ₁ Γ Δ <;> simp [subst, Sub.comp,  *]
+  case var h =>
+    cases h
+    rfl
+  case lam ih =>
+    apply ih
+
+
 
 theorem CPS.Equiv.subst {σ : Sub Γ Δ} (e₁ e₂ : CPS.Expr Δ t A)  : CPS.Equiv e₁ e₂ → CPS.Equiv (e₁.subst σ) (e₂.subst σ) := by
   intro h
@@ -366,11 +419,25 @@ theorem CPS.Equiv.subst {σ : Sub Γ Δ} (e₁ e₂ : CPS.Expr Δ t A)  : CPS.Eq
   case app ih₁ ih₂ => exact CPS.Equiv.app ih₁ ih₂
   case and_intro ih₁ ih₂ => exact CPS.Equiv.and_intro ih₁ ih₂
   case and_elim ih₁ ih₂ => exact CPS.Equiv.and_elim ih₁ ih₂
-  case eta v => sorry
-    -- simp [Expr.ren, Expr.zero, CPS.Expr.lift_ren_lift]
-    -- exact CPS.Equiv.eta (v := (Expr.subst σ v))
-  case eta_and => sorry
-  case beta => sorry
+  case eta v =>
+    simp [Expr.subst, Expr.zero, CPS.Expr.lift_subst_lift]
+    exact CPS.Equiv.eta (v := (Expr.ren r v))
+  case eta_and =>
+    simp [Expr.subst]
+    apply CPS.Equiv.trans
+    · apply CPS.Equiv.eta_and
+    · rename_i fst snd e
+      have : (Expr.subst ((Sub.id.snoc (Expr.subst σ snd)).snoc (Expr.subst σ fst)) (Expr.subst σ.lift.lift e)) = (Expr.subst σ (Expr.subst ((Sub.id.snoc snd).snoc fst) e)) := sorry
+      rw [this]
+      apply CPS.Equiv.refl
+  case beta =>
+    simp [Expr.ren]
+    apply CPS.Equiv.trans
+    · apply CPS.Equiv.beta
+    · rename_i e v
+      have : (Expr.subst (Sub.id.snoc (Expr.ren r v)) (Expr.ren r.lift e)) = (Expr.ren r (Expr.subst (Sub.id.snoc v) e)) := sorry
+      rw [this]
+      apply CPS.Equiv.refl
 
 theorem CPS.Equiv.cast  (h₁ : Expr Γ t A = Expr Γ t B) (h₂ : A = B) (e₁ e₂ : CPS.Expr Γ t A) : CPS.Equiv e₁ e₂ →
   CPS.Equiv (cast h₁ e₁) (cast h₁ e₂) := by
