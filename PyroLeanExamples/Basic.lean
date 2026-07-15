@@ -191,6 +191,66 @@ modular (name := `STLCFix)
   inductive Equiv extends STLC.Equiv where
     | fix : Equiv (.app (.ret (.fix e)) (.ret v)) (e.subst (Sub.id |>.snoc (.fix e) |>.snoc v))
 end STLCFix
+
+modular (name := `STLCBool)
+  namespace STLCBool
+  open STLC.Tag
+  inductive Ty extends STLC.Ty where
+    | bool
+
+  mod def Tag.Data extends STLC.Tag.Data where
+
+  @[reducible]
+  mod def Ctx extends STLC.Ctx
+
+  mod def Expr._proof_1 extends STLC.Expr._proof_1
+
+  inductive Expr extends STLC.Expr where
+    | true : Expr Γ val .bool
+    | false : Expr Γ val .bool
+    | ite : Expr Γ val .bool → Expr Γ exp A → Expr Γ exp A → Expr Γ exp A
+
+  mod def Expr.zero._proof_1 extends STLC.Expr.zero._proof_1
+  mod def Expr.zero._proof_2 extends STLC.Expr.zero._proof_2
+  mod def Expr.zero extends STLC.Expr.zero
+
+  mod def Ren extends STLC.Ren
+  mod def Ren.lift' extends STLC.Ren.lift'
+  -- TODO fix `mod def` elab s.t it accepts decls for which auxiliary decls appear in their type
+  mod def Ren.lift._proof_1 extends STLC.Ren.lift._proof_1
+  mod def Ren.lift._proof_3 extends STLC.Ren.lift._proof_3
+  mod def Ren.lift extends STLC.Ren.lift
+  mod def Ren.wk extends STLC.Ren.wk
+  mod def Expr.ren._proof_1 extends STLC.Expr.ren._proof_1
+  mod def Expr.ren extends STLC.Expr.ren where
+    matcher match_4 with
+      | _, _, .true => .true
+      | _, _, .false => .false
+      | _, _, .ite b e₁ e₂ => .ite (Expr.ren r b) (Expr.ren r e₁) (Expr.ren r e₂)
+
+  mod def Expr.lift extends STLC.Expr.lift
+
+  mod def Sub extends STLC.Sub
+  mod def Sub.id extends STLC.Sub.id
+  mod def Sub.wk extends STLC.Sub.wk
+  mod def Sub.snoc extends STLC.Sub.snoc
+  mod def Sub.lift extends STLC.Sub.lift
+
+  mod def Expr.subst extends STLC.Expr.subst where
+    matcher match_4 with
+      | _, _, .true => .true
+      | _, _, .false => .false
+      | _, _, .ite b e₁ e₂ => .ite (Expr.subst σ b) (Expr.subst σ e₁) (Expr.subst σ e₂)
+
+  inductive Equiv extends STLC.Equiv where
+    | ite_true : Equiv (.ite .true e₁ e₂) e₁
+    | ite_false : Equiv (.ite .false e₁ e₂) e₂
+    | ite : Equiv b b' → Equiv e₁ e₁' → Equiv e₂ e₂' → Equiv (.ite b e₁ e₂) (.ite b' e₁' e₂')
+
+end STLCBool
+
+
+
 -- #exit
 modular (name := `CPS)
   namespace CPS
@@ -228,11 +288,12 @@ modular (name := `CPS)
   theorem Ty.not_not (A : Ty) : A.not.not = A := by
     apply Quotient.recOnSubsingleton A (motive := fun A => (Ty.not A).not = A)
     intro a
-    simp only [not, Quotient.lift_mk, Quotient.eq, PreTy.Equiv.not_not]
+    rw [not, not, Quotient.liftOn_mk, Quotient.liftOn_mk, Quotient.eq]
+    apply PreTy.Equiv.not_not
 
   def Ty.times (A B: Ty) : Ty := Quotient.liftOn₂ A B (fun A B => ⟦ A.times B ⟧ ) fun a₁ a₂ b₁ b₂ e₁ e₂ => by
     induction e₁ <;> induction e₂
-    <;> simp [Quotient.eq, *] at *
+    <;> simp only [propext Quotient.eq, implies_true, *] at *
     <;> grind [PreTy]
 
   @[reducible]
@@ -261,6 +322,7 @@ modular (name := `CPS)
   mod def Ren.lift._proof_1 extends Base.Ren.lift._proof_1
   mod def Ren.lift._proof_3 extends Base.Ren.lift._proof_3
   mod def Ren.lift extends Base.Ren.lift
+  attribute [implicit_reducible] Ren Ren.lift
   mod def Ren.wk extends Base.Ren.wk
 
   mod def Expr.ren._proof_1 extends Base.Expr.ren._proof_1 where
@@ -274,6 +336,7 @@ modular (name := `CPS)
   mod def Expr.lift extends Base.Expr.lift
 
   mod def Sub extends Base.Sub
+  attribute [implicit_reducible] Sub
   mod def Sub.id extends Base.Sub.id
   mod def Sub.wk extends Base.Sub.wk
   mod def Sub.snoc extends Base.Sub.snoc
@@ -299,6 +362,85 @@ modular (name := `CPS)
   mod def Equiv.setoid extends Base.Equiv.setoid
 
 end CPS
+
+-- #exit
+modular (name := `CPSFix)
+  namespace CPSFix
+
+  inductive Tag extends CPS.Tag
+  open Tag
+
+  inductive PreTy extends CPS.PreTy
+
+  inductive PreTy.Equiv extends CPS.PreTy.Equiv
+
+  attribute [grind .] PreTy.Equiv.not_not PreTy.Equiv.not PreTy.Equiv.times PreTy.Equiv.refl PreTy.Equiv.symm
+
+  attribute [grind =] Quotient.eq
+
+  grind_pattern PreTy.Equiv.trans => PreTy.Equiv A B, PreTy.Equiv B C
+
+  @[reducible]
+  mod def Ty extends CPS.Ty
+
+  mod def Ty.not extends CPS.Ty.not
+
+  @[simp]
+  mod def Ty.not_not extends CPS.Ty.not_not
+
+  mod def Ty.times extends CPS.Ty.times
+
+  @[reducible]
+  mod def Tag.Data extends CPS.Tag.Data
+
+  @[reducible]
+  mod def Ctx extends CPS.Ctx
+
+  mod def Expr._proof_1 extends CPS.Expr._proof_1
+
+  inductive Expr extends CPS.Expr where
+      | fix : Expr (A::A.not::Γ) exp () → Expr Γ val A.not
+
+  -- TODO add fix
+
+  mod def Expr.zero._proof_1 extends CPS.Expr.zero._proof_1
+  mod def Expr.zero._proof_2 extends CPS.Expr.zero._proof_2
+  mod def Expr.zero extends CPS.Expr.zero
+
+  mod def Ren extends CPS.Ren
+  mod def Ren.lift' extends CPS.Ren.lift'
+  -- TODO fix `mod def` elab s.t it accepts decls for which auxiliary decls appear in their type
+  mod def Ren.lift._proof_1 extends CPS.Ren.lift._proof_1
+  mod def Ren.lift._proof_3 extends CPS.Ren.lift._proof_3
+  mod def Ren.lift extends CPS.Ren.lift
+  attribute [implicit_reducible] Ren Ren.lift
+  mod def Ren.wk extends CPS.Ren.wk
+
+  mod def Expr.ren._proof_1 extends CPS.Expr.ren._proof_1 where
+  mod def Expr.ren extends CPS.Expr.ren where
+    matcher match_3 with
+      | _, _, .fix e => .fix (Expr.ren r.lift.lift e)
+
+  mod def Expr.lift extends CPS.Expr.lift
+
+  mod def Sub extends CPS.Sub
+  attribute [implicit_reducible] Sub
+  mod def Sub.id extends CPS.Sub.id
+  mod def Sub.wk extends CPS.Sub.wk
+  mod def Sub.snoc extends CPS.Sub.snoc
+  mod def Sub.lift extends CPS.Sub.lift
+
+  mod def Expr.subst extends CPS.Expr.subst where
+    matcher match_3 with
+      | _, _, .fix e => .fix (Expr.subst σ.lift.lift e)
+
+  inductive Equiv extends CPS.Equiv where
+    | fix : Equiv (.app (.fix e) v) (e.subst (Sub.id |>.snoc (.fix e) |>.snoc v))
+
+  mod def Equiv.equiv extends CPS.Equiv.equiv
+  mod def Equiv.setoid extends CPS.Equiv.setoid
+
+end CPSFix
 
 def STLC.Tag.toCPS : Tag → CPS.Tag
   | dummy => .dummy
@@ -339,13 +481,11 @@ theorem CPS.Expr.ren_of_ren_ren  {r₁ : Ren Γ Δ} {r₂ : Ren Δ Φ} (v : Expr
   induction v generalizing r₁ Γ Δ <;> simp [ren, Ren.comp, *]
   case lam =>
     congr 2
-    funext x
-    obtain ⟨x,_⟩ := x
+    funext ⟨x,_⟩
     cases x <;> rfl
   case and_elim =>
     congr 2
-    funext x
-    obtain ⟨x,_⟩ := x
+    funext ⟨x,_⟩
     cases x
     case zero => rfl
     case succ x _ => cases x <;> rfl
@@ -358,6 +498,104 @@ theorem CPS.Expr.lift_ren_lift {r : Ren Γ Δ} (v : Expr Δ t A): Expr.ren r.lif
   rw [Expr.lift, Expr.lift, CPS.Expr.ren_of_ren_ren, CPS.Expr.ren_of_ren_ren]
   rfl
 
+abbrev CPS.Ren.toSub (r : Ren Γ Δ) : Sub Γ Δ := fun n => .var (r.1 n) (r.2 n).symm
+
+@[simp]
+theorem CPS.Ren.toSub_lift (r : Ren Γ Δ) : r.lift.toSub = r.toSub.lift (A := A)  := by
+  funext ⟨x,_⟩
+  cases x <;> rfl
+
+instance : Coe (CPS.Ren Γ Δ) (CPS.Sub Γ Δ) where
+  coe := CPS.Ren.toSub
+
+@[simp]
+theorem CPS.Expr.ren_of_subst_ren {r : Ren Γ Δ} (e : Expr Δ t A) : e.subst r = e.ren r := by
+  induction e generalizing Γ <;> simp [CPS.Ren.toSub, subst, ren, ← CPS.Ren.toSub_lift, *]
+  case var h => cases h; rfl
+
+def CPS.Sub.comp (σ₁ : Sub Γ Δ) (σ₂ : Sub Δ Φ) : Sub Γ Φ :=
+  fun n => (σ₂ n).subst σ₁
+
+@[simp]
+theorem CPS.Sub.wk_snoc_zero (σ : Sub Γ Δ) : (σ.wk (A := A)).snoc Expr.zero = σ.lift := rfl
+
+@[simp]
+theorem CPS.Expr.subst_lift_zero (σ : Sub Γ Δ) : σ.lift (A := A) ⟨0,h⟩ = Expr.zero := rfl
+
+@[simp]
+theorem CPS.Expr.subst_snoc_zero (σ : Sub Γ Δ) : σ.snoc e ⟨0,h⟩ = e := rfl
+
+@[simp]
+theorem CPS.Expr.subst_snoc_succ (σ : Sub Γ Δ) : σ.snoc e ⟨n+1,h⟩ = σ ⟨n,Nat.lt_of_succ_lt_succ h⟩ := rfl
+
+@[simp]
+theorem CPS.Expr.subst_lift_succ (σ : Sub Γ Δ) : σ.lift (A := A) ⟨n+1,h⟩ = (σ ⟨n,Nat.lt_of_succ_lt_succ h⟩).lift := rfl
+
+theorem CPS.Sub.ren_comp_lift {r : Ren Γ Δ} {σ : Sub Δ Φ} : (Sub.comp r σ).lift (A := A) = Sub.comp r.lift.toSub σ.lift := by
+  funext ⟨x,_⟩
+  unfold comp lift
+  simp
+  cases x
+  · rfl
+  · simp only [List.getElem_cons_succ, Expr.subst_lift_succ, Fin.getElem_fin, ← CPS.Ren.toSub_lift, CPS.Expr.ren_of_subst_ren, CPS.Expr.lift_ren_lift]
+
+theorem CPS.Sub.wk_of_lift_comp_ren_wk {σ : Sub Γ Δ} : (Sub.comp σ.lift Ren.wk.toSub) = σ.wk (A := A) := by
+  funext ⟨x,_⟩
+  rw [comp, Sub.wk, Expr.lift, Ren.toSub, Ren.wk, Expr.subst]
+  simp only
+  unfold Fin.succ
+  rw [CPS.Expr.subst_lift_succ, Expr.lift]
+
+@[simp]
+theorem CPS.Sub.comp_ren_lift {σ : Sub Γ Δ} {τ : Sub Δ Φ} : Sub.comp σ.lift τ.lift = (Sub.comp σ τ).lift (A := A) := by
+  funext ⟨x,_⟩
+  simp only [lift.eq_def, comp]
+  cases x --generalizing  Γ Δ Φ
+  case zero => rfl
+  case succ n h => sorry
+
+theorem CPS.Expr.subst_of_subst_subst  {σ₁ : Sub Γ Δ} {σ₂ : Sub Δ Φ} (v : Expr Φ t A) : (v.subst σ₂).subst σ₁ = v.subst (σ₁.comp σ₂) := by
+  induction v generalizing σ₁ Γ Δ <;> simp only [subst, Fin.getElem_fin, Sub.comp, *]
+  case var h =>
+    cases h
+    rfl
+  case lam A Φ t ih =>
+    rw [CPS.Sub.comp_ren_lift]
+  case and_elim ih =>
+    rw [CPS.Sub.comp_ren_lift,CPS.Sub.comp_ren_lift]
+
+theorem CPS.Expr.subst_of_subst_ren  {σ : Sub Γ Δ} {r : Ren Δ Φ}  (v : Expr Φ t A) : (v.ren r).subst σ = v.subst (Sub.comp σ r) := by
+  rw [← CPS.Expr.ren_of_subst_ren, CPS.Expr.subst_of_subst_subst]
+
+theorem CPS.Expr.subst_of_ren_subst  {r : Ren Γ Δ} {σ : Sub Δ Φ} (v : Expr Φ t A) : (v.subst σ).ren r = v.subst (Sub.comp r σ) := by
+  rw [← CPS.Expr.ren_of_subst_ren, CPS.Expr.subst_of_subst_subst]
+
+theorem CPS.Sub.wk_of_ren_wk_comp {σ : Sub Γ Δ} : (Sub.comp Ren.wk.toSub σ) = σ.wk (A := A) := by
+  funext x
+  rw [comp, Sub.wk, Expr.lift, CPS.Expr.ren_of_subst_ren]
+
+
+theorem CPS.Expr.subst_ren_wk {σ : Sub Γ Δ} (e : Expr Δ t A) : (e.subst σ).ren (Ren.wk (A := B)) = e.subst (σ.wk (A := B)) := by
+  rw [CPS.Expr.subst_of_ren_subst, CPS.Sub.wk_of_ren_wk_comp]
+
+
+-- theorem CPS.Sub.comp_wk {σ₁ : Sub Γ Δ} {σ₂ : Sub Δ Φ} : (σ₁.comp σ₂).wk (A := A) = σ₁.wk.comp σ₂ := by
+  -- funext ⟨x,_⟩
+  -- induction x generalizing σ₁ Γ Δ Φ
+  -- · rw [wk,comp, comp, Expr.lift]
+
+theorem CPS.Expr.lift_subst_lift {σ : Sub Γ Δ} (v : Expr Δ t A): Expr.subst σ.lift v.lift = (Expr.subst σ v).lift (B := B) := by
+  rw [Expr.lift, Expr.lift,CPS.Expr.subst_ren_wk, CPS.Expr.subst_of_subst_ren, CPS.Sub.wk_of_lift_comp_ren_wk]
+
+set_option allowUnsafeReducibility true in
+attribute [implicit_reducible] getElem List.length
+
+theorem CPS.Expr.cast_val {h : Γ[n] = A}(e : A = B) : e ▸ Expr.var n h = Expr.var n h' := by cases e; rfl
+
+-- set_option linter.tacticCheckInstances true
+set_option backward.isDefEq.respectTransparency false
+set_option backward.isDefEq.respectTransparency.types false
+set_option backward.isDefEq.implicitBump true in
 theorem CPS.Equiv.ren {r : Ren Γ Δ} (e₁ e₂ : CPS.Expr Δ t A) : CPS.Equiv e₁ e₂ → CPS.Equiv (e₁.ren r) (e₂.ren r) := by
   intro h
   induction h generalizing Γ
@@ -371,12 +609,25 @@ theorem CPS.Equiv.ren {r : Ren Γ Δ} (e₁ e₂ : CPS.Expr Δ t A) : CPS.Equiv 
   case eta v =>
     simp [Expr.ren, Expr.zero, CPS.Expr.lift_ren_lift]
     exact CPS.Equiv.eta (v := (Expr.ren r v))
-  case eta_and =>
+  case eta_and Δ t fst snd e =>
     simp [Expr.ren]
     apply CPS.Equiv.trans
     · apply CPS.Equiv.eta_and
-    · rename_i fst snd e
-      have : (Expr.subst ((Sub.id.snoc (Expr.ren r snd)).snoc (Expr.ren r fst)) (Expr.ren r.lift.lift e)) = (Expr.ren r (Expr.subst ((Sub.id.snoc snd).snoc fst) e)) := sorry
+    · have : (e.ren r.lift.lift).subst ((Sub.id.snoc (Expr.ren r snd)).snoc (Expr.ren r fst)) = (e.subst ((Sub.id.snoc snd).snoc fst)).ren r := by
+        simp [CPS.Expr.subst_of_ren_subst, CPS.Expr.subst_of_subst_ren]
+        congr 1
+        funext ⟨x,_⟩
+        cases x
+        case zero => rw [Sub.comp, ← CPS.Ren.toSub_lift, CPS.Expr.subst_lift_zero, Sub.comp, CPS.Expr.subst_snoc_zero, Expr.zero, Expr.subst, CPS.Expr.subst_snoc_zero, CPS.Expr.ren_of_subst_ren]
+        case succ x h =>
+          cases x
+          · rw [Sub.comp, ← CPS.Ren.toSub_lift, CPS.Expr.subst_lift_succ, CPS.Ren.toSub_lift, CPS.Expr.subst_lift_zero, Sub.comp, Expr.zero, Expr.lift, Expr.ren, Ren.wk]
+            simp only [List.length_cons, Nat.reduceAdd, Fin.mk_one, Fin.getElem_fin, Fin.val_one,
+              List.getElem_cons_succ, List.getElem_cons_zero, Fin.zero_eta, Fin.val_zero,
+              Fin.succ_zero_eq_one, Expr.ren_of_subst_ren]
+            rfl
+          · cbv
+            apply CPS.Expr.cast_val
       rw [this]
       apply CPS.Equiv.refl
   case beta =>
@@ -384,30 +635,17 @@ theorem CPS.Equiv.ren {r : Ren Γ Δ} (e₁ e₂ : CPS.Expr Δ t A) : CPS.Equiv 
     apply CPS.Equiv.trans
     · apply CPS.Equiv.beta
     · rename_i e v
-      have : (Expr.subst (Sub.id.snoc (Expr.ren r v)) (Expr.ren r.lift e)) = (Expr.ren r (Expr.subst (Sub.id.snoc v) e)) := sorry
+      have : (e.ren r.lift).subst (Sub.id.snoc (Expr.ren r v)) = (e.subst (Sub.id.snoc v)).ren r := by
+        simp [CPS.Expr.subst_of_ren_subst, CPS.Expr.subst_of_subst_ren]
+        congr 1
+        funext ⟨x,_⟩
+        cases x
+        case zero => rw [Sub.comp, CPS.Expr.subst_lift_zero, Sub.comp, CPS.Expr.subst_snoc_zero, Expr.zero, Expr.subst, CPS.Expr.subst_snoc_zero, CPS.Expr.ren_of_subst_ren]
+        case succ x h =>
+          cbv
+          apply CPS.Expr.cast_val
       rw [this]
       apply CPS.Equiv.refl
-
-abbrev CPS.Sub.comp (σ₁ : Sub Γ Δ) (σ₂ : Sub Δ Φ) : Sub Γ Φ :=
-  fun n => (σ₂ n).subst σ₁
-
-
-theorem CPS.Expr.sub_lift_wk {σ : Sub Γ Δ} {τ : Sub  Δ Φ}: (σ.lift (A := A) |>.comp (Sub.wk (A := A) τ)) = ((Sub.wk (A := A) σ).comp τ) := by
-  sorry
-
-theorem CPS.Sub.comp_lift {σ₁ : Sub Γ Δ} {σ₂ : Sub Δ Φ} : (σ₁.comp σ₂).lift (A := A) = σ₁.lift.comp σ₂.lift := by
-  funext x
-  unfold comp lift
-
-theorem CPS.Expr.subst_of_subst_subst  {σ₁ : Sub Γ Δ} {σ₂ : Sub Δ Φ} (v : Expr Φ t A) : (v.subst σ₂).subst σ₁ = v.subst (σ₁.comp σ₂) := by
-  induction v generalizing σ₁ Γ Δ <;> simp [subst, Sub.comp,  *]
-  case var h =>
-    cases h
-    rfl
-  case lam ih =>
-    apply ih
-
-
 
 theorem CPS.Equiv.subst {σ : Sub Γ Δ} (e₁ e₂ : CPS.Expr Δ t A)  : CPS.Equiv e₁ e₂ → CPS.Equiv (e₁.subst σ) (e₂.subst σ) := by
   intro h
@@ -421,7 +659,7 @@ theorem CPS.Equiv.subst {σ : Sub Γ Δ} (e₁ e₂ : CPS.Expr Δ t A)  : CPS.Eq
   case and_elim ih₁ ih₂ => exact CPS.Equiv.and_elim ih₁ ih₂
   case eta v =>
     simp [Expr.subst, Expr.zero, CPS.Expr.lift_subst_lift]
-    exact CPS.Equiv.eta (v := (Expr.ren r v))
+    exact CPS.Equiv.eta (v := (Expr.subst σ v))
   case eta_and =>
     simp [Expr.subst]
     apply CPS.Equiv.trans
@@ -431,11 +669,11 @@ theorem CPS.Equiv.subst {σ : Sub Γ Δ} (e₁ e₂ : CPS.Expr Δ t A)  : CPS.Eq
       rw [this]
       apply CPS.Equiv.refl
   case beta =>
-    simp [Expr.ren]
+    simp [Expr.subst]
     apply CPS.Equiv.trans
     · apply CPS.Equiv.beta
     · rename_i e v
-      have : (Expr.subst (Sub.id.snoc (Expr.ren r v)) (Expr.ren r.lift e)) = (Expr.ren r (Expr.subst (Sub.id.snoc v) e)) := sorry
+      have : (Expr.subst (Sub.id.snoc (Expr.subst σ v)) (Expr.subst σ.lift e)) = (Expr.subst σ (Expr.subst (Sub.id.snoc v) e)) := sorry
       rw [this]
       apply CPS.Equiv.refl
 
