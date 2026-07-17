@@ -835,7 +835,7 @@ modular (name := `CPSFix') (imports := #[`CPSFix])
   mod def Equiv.cast extends CPS.Equiv.cast
 
 end CPSFix
-#exit
+
 def STLC.Tag.toCPS : Tag → CPS.Tag
   | dummy => .dummy
   | val => .val
