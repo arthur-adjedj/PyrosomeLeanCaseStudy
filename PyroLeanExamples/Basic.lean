@@ -1,3 +1,4 @@
+import Lean.PrettyPrinter.Delaborator.Basic
 import LeanALaCarte
 import Mathlib.Data.Quot
 set_option inductive.autoPromoteIndices false
@@ -39,7 +40,7 @@ def Ren.wk : Ren (A::Γ) Γ where
   val := Fin.succ
   property _ := rfl
 
-def Expr.ren (r : Ren Γ Δ) : Expr Δ t A → Expr Γ t A
+def Expr.ren (r : Ren Γ Δ) : Expr Δ t A →  Expr Γ t A
   | .var n h₁ => .var (r.val n) (by rw [←h₁];symm; exact r.2 n)
 
 def Expr.lift : Expr Γ t A → Expr (B::Γ) t A := Expr.ren Ren.wk
@@ -252,9 +253,55 @@ modular (name := `STLCBool)
 
 end STLCBool
 
+modular (name := `STLCFixBool)
+  namespace STLCFixBool
+  open STLC.Tag
+
+  inductive Ty extends STLCFix.Ty, STLCBool.Ty where
+    | bool
+
+  mod def Tag.Data extends STLCFix.Tag.Data, STLCBool.Tag.Data where
+
+  @[reducible]
+  mod def Ctx extends STLCFix.Ctx, STLCBool.Ctx
+
+  mod def Expr._proof_1 extends STLCFix.Expr._proof_1, STLCBool.Expr._proof_1
+
+  inductive Expr extends STLCFix.Expr, STLCBool.Expr where
+    | true : Expr Γ val .bool
+    | false : Expr Γ val .bool
+    | ite : Expr Γ val .bool → Expr Γ exp A → Expr Γ exp A → Expr Γ exp A
+
+  mod def Expr.zero._proof_1 extends STLCFix.Expr.zero._proof_1, STLCBool.Expr.zero._proof_1
+  mod def Expr.zero._proof_2 extends STLCFix.Expr.zero._proof_2, STLCBool.Expr.zero._proof_2
+  mod def Expr.zero extends STLCFix.Expr.zero, STLCBool.Expr.zero
+
+  mod def Ren extends STLCFix.Ren, STLCBool.Ren
+  -- TODO the two ⟨n+1, h⟩ branches are not merged correctly here. This is benign here since they're the exact same, but this should be fixed nonetheless for the general case.
+  set_option match.ignoreUnusedAlts true
+  mod def Ren.lift' extends STLCFix.Ren.lift', STLCBool.Ren.lift'
+  -- TODO fix `mod def` elab s.t it accepts decls for which auxiliary decls appear in their type
+  mod def Ren.lift._proof_1 extends STLCFix.Ren.lift._proof_1, STLCBool.Ren.lift._proof_1
+  mod def Ren.lift._proof_3 extends STLCFix.Ren.lift._proof_3, STLCBool.Ren.lift._proof_3
+  mod def Ren.lift extends STLCFix.Ren.lift, STLCBool.Ren.lift
+  mod def Ren.wk extends STLCFix.Ren.wk, STLCBool.Ren.wk
+  mod def Expr.ren._proof_1 extends STLCFix.Expr.ren._proof_1, STLCBool.Expr.ren._proof_1
+  mod def Expr.ren extends STLCFix.Expr.ren, STLCBool.Expr.ren
+  mod def Expr.lift extends STLCFix.Expr.lift, STLCBool.Expr.lift
+
+  mod def Sub extends STLCFix.Sub, STLCBool.Sub
+  mod def Sub.id extends STLCFix.Sub.id, STLCBool.Sub.id
+  mod def Sub.wk extends STLCFix.Sub.wk, STLCBool.Sub.wk
+  mod def Sub.snoc extends STLCFix.Sub.snoc, STLCBool.Sub.snoc
+  mod def Sub.lift extends STLCFix.Sub.lift, STLCBool.Sub.lift
+
+  mod def Expr.subst extends STLCFix.Expr.subst, STLCBool.Expr.subst
+
+  inductive Equiv extends STLCFix.Equiv, STLCBool.Equiv
+
+end STLCFixBool
 
 
--- #exit
 modular (name := `CPS)
   namespace CPS
 
@@ -355,7 +402,7 @@ modular (name := `CPS)
   inductive Equiv extends Base.Equiv where
     | lam : Equiv f₁ f₂ → Equiv (.lam f₁) (.lam f₂)
     | app : Equiv f₁ f₂ → Equiv t₁ t₂ → Equiv (.app f₁ t₁) (.app f₂ t₂)
-    | beta : Equiv (.app (.lam e) v) (e.subst (Sub.id.snoc v))
+    | beta (e : Expr (A::Γ) .exp ()) (v : Expr Γ .val A): Equiv (.app (.lam e) v) (e.subst (Sub.id.snoc v))
     | eta {v : Expr Γ val (.not A)}: Equiv (.lam (.app v.lift .zero)) v
     | and_intro : Equiv fst₁ fst₂ → Equiv snd₁ snd₂ → Equiv (.and_intro fst₁ snd₁) (.and_intro fst₂ snd₂)
     | and_elim :  Equiv p₁ p₂ → Equiv e₁ e₂ → Equiv (.and_elim p₁ e₁) (.and_elim p₂ e₂)
@@ -369,18 +416,16 @@ def Ren.comp (r₁ : Ren Γ Δ) (r₂ : Ren Δ Φ) : Ren Γ Φ where
   val := r₁.val ∘ r₂.val
   property n := r₂.property n |>.trans (r₁.property (r₂.val n))
 
+theorem Ren.lift_comp_lift (r₁ : Ren Γ Δ) (r₂ : Ren Δ Φ) : (r₁.comp r₂).lift (A := A) = (r₁.lift.comp r₂.lift) := by
+  simp [Ren]
+  ext
+  rename_i x
+  obtain ⟨x,_⟩ := x
+  cases x <;> rfl
+
 theorem Expr.ren_of_ren_ren  {r₁ : Ren Γ Δ} {r₂ : Ren Δ Φ} (v : Expr Φ t A) : (v.ren r₂).ren r₁ = v.ren (r₁.comp r₂) := by
-  induction v generalizing r₁ Γ Δ <;> simp [ren, Ren.comp, *]
-  case lam =>
-    congr 2
-    funext ⟨x,_⟩
-    cases x <;> rfl
-  case and_elim =>
-    congr 2
-    funext ⟨x,_⟩
-    cases x
-    case zero => rfl
-    case succ x _ => cases x <;> rfl
+  induction v generalizing r₁ Γ Δ <;> simp [ren, Ren.lift_comp_lift, *]
+  case var => rfl
 
 theorem Expr.ren_lift_wk {r : Ren Γ Δ} : (r.lift.comp Ren.wk) = ((Ren.wk (A := B)).comp r) := by
   simp [Ren.comp, Ren.lift, Ren.wk]
@@ -634,7 +679,6 @@ theorem Equiv.cast  (h₁ : Expr Γ t A = Expr Γ t B) (h₂ : A = B) (e₁ e₂
 
 end CPS
 
--- #exit
 modular (name := `CPSFix)
   namespace CPSFix
 
@@ -714,14 +758,11 @@ modular (name := `CPSFix)
   mod def Ren.comp._proof_1 extends CPS.Ren.comp._proof_1
   mod def Ren.comp extends CPS.Ren.comp
 
+  mod def Ren.lift_comp_lift extends CPS.Ren.lift_comp_lift
+
   mod def Expr.ren_of_ren_ren extends CPS.Expr.ren_of_ren_ren where finally
-    intro _ _ _ ih _ _ _ _
-    simp [Expr.ren, Ren.comp, *]
-    congr 2
-    funext ⟨x,_⟩
-    cases x
-    case zero => rfl
-    case succ x _ => cases x <;> rfl
+    intros
+    simp [Expr.ren, Ren.lift_comp_lift, *]
 
   mod def Expr.ren_lift_wk extends CPS.Expr.ren_lift_wk
 
@@ -812,9 +853,6 @@ modular (name := `CPSFix)
   @[simp]
   mod def Sub.comp_lift extends CPS.Sub.comp_lift
 
--- #exit
-modular (name := `CPSFix') (imports := #[`CPSFix])
-
   mod def Expr.subst_subst extends CPS.Expr.subst_subst where finally
     intros
     simp only [Sub.comp_lift, Expr.subst, *]
@@ -833,15 +871,398 @@ modular (name := `CPSFix') (imports := #[`CPSFix])
     -- sorry
 
   mod def Equiv.cast extends CPS.Equiv.cast
-
 end CPSFix
+
+modular (name := `CPSNat)
+  namespace CPSNat
+
+  inductive Tag extends CPS.Tag
+  open Tag
+
+  inductive PreTy extends CPS.PreTy where
+    | nat
+
+  inductive PreTy.Equiv extends CPS.PreTy.Equiv
+
+  attribute [grind .] PreTy.Equiv.not_not PreTy.Equiv.not PreTy.Equiv.times PreTy.Equiv.refl PreTy.Equiv.symm
+
+  attribute [grind =] Quotient.eq
+
+  grind_pattern PreTy.Equiv.trans => PreTy.Equiv A B, PreTy.Equiv B C
+
+  @[reducible]
+  mod def Ty extends CPS.Ty
+
+  def Ty.nat : Ty := ⟦ PreTy.nat ⟧
+
+  mod def Ty.not extends CPS.Ty.not
+
+  @[simp]
+  mod def Ty.not_not extends CPS.Ty.not_not
+
+  mod def Ty.times extends CPS.Ty.times
+
+  @[reducible]
+  mod def Tag.Data extends CPS.Tag.Data
+
+  @[reducible]
+  mod def Ctx extends CPS.Ctx
+
+  mod def Expr._proof_1 extends CPS.Expr._proof_1
+
+  inductive Expr extends CPS.Expr where
+    | Z : Expr Γ val .nat
+    | S : Expr Γ val .nat → Expr Γ val .nat
+    | nat_match : Expr Γ exp () → Expr (Ty.nat::Γ) exp () → Expr Γ val Ty.nat.not
+
+  mod def Expr.zero._proof_1 extends CPS.Expr.zero._proof_1
+  mod def Expr.zero._proof_2 extends CPS.Expr.zero._proof_2
+  mod def Expr.zero extends CPS.Expr.zero
+
+  mod def Ren extends CPS.Ren
+  mod def Ren.lift' extends CPS.Ren.lift'
+  -- TODO fix `mod def` elab s.t it accepts decls for which auxiliary decls appear in their type
+  mod def Ren.lift._proof_1 extends CPS.Ren.lift._proof_1
+  mod def Ren.lift._proof_3 extends CPS.Ren.lift._proof_3
+  mod def Ren.lift extends CPS.Ren.lift
+  attribute [implicit_reducible] Ren Ren.lift
+  mod def Ren.wk extends CPS.Ren.wk
+
+  mod def Expr.ren._proof_1 extends CPS.Expr.ren._proof_1 where
+  mod def Expr.ren extends CPS.Expr.ren where
+    matcher match_3 with
+      | _, _, .Z => .Z
+      | _, _, .S n => .S (Expr.ren r n)
+      | _, _, .nat_match P0 PS => .nat_match (Expr.ren r P0) (Expr.ren r.lift PS)
+
+  mod def Expr.lift extends CPS.Expr.lift
+
+  mod def Sub extends CPS.Sub
+  attribute [implicit_reducible] Sub
+  mod def Sub.id extends CPS.Sub.id
+  mod def Sub.wk extends CPS.Sub.wk
+  mod def Sub.snoc extends CPS.Sub.snoc
+  mod def Sub.lift extends CPS.Sub.lift
+
+  mod def Expr.subst extends CPS.Expr.subst where
+    matcher match_3 with
+      | _, _, .Z => .Z
+      | _, _, .S n => .S (Expr.subst σ n)
+      | _, _, .nat_match P0 PS => .nat_match (Expr.subst σ P0) (Expr.subst σ.lift PS)
+
+  inductive Equiv extends CPS.Equiv where
+    | S : Equiv n k → Equiv (.S n) (.S k)
+    | nat_match : Equiv P0 P0' → Equiv PS PS' → Equiv (.nat_match P0 PS) (.nat_match P0' PS')
+    | match_zero : Equiv (.app (.nat_match P0 PS) .Z) P0
+    | match_succ : Equiv (.app (.nat_match P0 PS) (.S n)) (PS.subst (Sub.id.snoc n))
+
+  mod def Equiv.equiv extends CPS.Equiv.equiv
+  mod def Equiv.setoid extends CPS.Equiv.setoid
+
+  mod def Ren.comp._proof_1 extends CPS.Ren.comp._proof_1
+  mod def Ren.comp extends CPS.Ren.comp
+
+  mod def Ren.lift_comp_lift extends CPS.Ren.lift_comp_lift
+
+  mod def Expr.ren_of_ren_ren extends CPS.Expr.ren_of_ren_ren where finally
+    all_goals intros; simp [Expr.ren, Ren.lift_comp_lift, *]
+
+  mod def Expr.ren_lift_wk extends CPS.Expr.ren_lift_wk
+
+  mod def Expr.lift_ren_lift extends CPS.Expr.lift_ren_lift
+
+  mod def Sub.ren_comp extends CPS.Sub.ren_comp
+
+  mod def Sub.comp_ren._proof_1 extends CPS.Sub.comp_ren._proof_1
+  mod def Sub.comp_ren extends CPS.Sub.comp_ren
+
+  @[simp]
+  mod def Sub.snoc_comp_ren_wk extends CPS.Sub.snoc_comp_ren_wk
+
+  mod def Sub.comp extends CPS.Sub.comp
+
+  @[simp]
+  mod def Sub.wk_snoc_zero extends CPS.Sub.wk_snoc_zero
+
+  @[simp]
+  mod def Expr.subst_lift_zero extends CPS.Expr.subst_lift_zero
+
+  @[simp]
+  mod def Expr.subst_snoc_zero extends CPS.Expr.subst_snoc_zero
+
+  @[simp]
+  mod def Expr.subst_snoc_succ extends CPS.Expr.subst_snoc_succ
+
+  @[simp]
+  mod def Expr.subst_lift_succ extends CPS.Expr.subst_lift_succ
+
+  mod def Sub.ren_comp_lift extends CPS.Sub.ren_comp_lift
+
+  mod def Sub.wk_of_lift_comp_ren_wk extends CPS.Sub.wk_of_lift_comp_ren_wk
+
+  mod def Sub.head extends CPS.Sub.head
+  mod def Sub.tail extends CPS.Sub.tail
+  mod def Sub.eta  extends CPS.Sub.eta
+
+  mod def Sub.Zshift' extends CPS.Sub.Zshift'
+
+  mod def Sub.Zshift extends CPS.Sub.Zshift
+
+  mod def Sub.idR extends CPS.Sub.idR
+
+  @[simp]
+  mod def Expr.subst_id extends CPS.Expr.subst_id where
+    finally
+      all_goals
+        intros
+        simp [Expr.subst, Sub.Zshift, *]
+
+  @[simp]
+  mod def Sub.idL extends CPS.Sub.idL
+
+  mod def Expr.subst_comp_ren_lift extends CPS.Expr.subst_comp_ren_lift
+
+  mod def Expr.subst_ren extends CPS.Expr.subst_ren where
+    finally
+      all_goals
+        intros
+        simp [Expr.subst, Expr.ren, Expr.subst_comp_ren_lift, *]
+
+  @[simp]
+  mod def Ren.lift_succ extends CPS.Ren.lift_succ
+
+  @[simp]
+  mod def Sub.lift_succ extends CPS.Sub.lift_succ
+
+  -- TODO fix this issue...
+  mod def Expr.ren.hcongr_6' extends CPS.Expr.ren.hcongr_6
+  mod def Expr.ren_comp_subst_lift._proof_1_4 extends CPS.Expr.ren_comp_subst_lift._proof_1_4
+  mod def Expr.ren_comp_subst_lift._proof_1_5 extends CPS.Expr.ren_comp_subst_lift._proof_1_5
+  mod def Expr.ren_comp_subst_lift._proof_1_6 extends CPS.Expr.ren_comp_subst_lift._proof_1_6
+  mod def Expr.ren_comp_subst_lift._proof_1_10 extends CPS.Expr.ren_comp_subst_lift._proof_1_10
+  mod def Expr.ren_comp_subst_lift._proof_1_11 extends CPS.Expr.ren_comp_subst_lift._proof_1_11
+  mod def Expr.ren_comp_subst_lift._proof_1_12 extends CPS.Expr.ren_comp_subst_lift._proof_1_12
+  mod def Expr.ren_comp_subst_lift._proof_1_13 extends CPS.Expr.ren_comp_subst_lift._proof_1_13
+  mod def Expr.ren_comp_subst_lift extends CPS.Expr.ren_comp_subst_lift
+
+  mod def Expr.ren_subst extends CPS.Expr.ren_subst where finally
+    all_goals
+      intros
+      simp [Expr.ren, Expr.subst, Expr.ren_comp_subst_lift, *]
+
+  mod def Expr.lift_subst_lift extends CPS.Expr.lift_subst_lift where finally
+    all_goals
+      intros
+      simp [Expr.lift, Expr.ren, Expr.subst, *]
+    · rw [Expr.subst_ren, Expr.ren_subst, Sub.wk_of_lift_comp_ren_wk]
+      rfl
+    · constructor
+      · rw [Expr.subst_ren, Expr.ren_subst, Sub.wk_of_lift_comp_ren_wk]
+        rfl
+      · rw [Expr.subst_ren, ← Expr.subst_comp_ren_lift, Expr.ren_subst, ← Expr.ren_comp_subst_lift, Sub.wk_of_lift_comp_ren_wk]
+        rfl
+
+  @[simp]
+  mod def Sub.comp_lift extends CPS.Sub.comp_lift
+
+  mod def Expr.subst_subst extends CPS.Expr.subst_subst where finally
+    all_goals
+      intros
+      simp only [Sub.comp_lift, Expr.subst, *]
+
+  mod def Expr.cast_val._proof_1 extends CPS.Expr.cast_val._proof_1
+  mod def Expr.cast_val extends CPS.Expr.cast_val
+
+  -- mod def Equiv.ren extends CPS.Equiv.ren where finally
+    -- intros
+    -- simp only [subst, Fin.getElem_fin, Sub.comp, *]
+    -- rw [Sub.comp_lift, Sub.comp_lift]
+
+  -- mod def Equiv.subst extends CPS.Equiv.subst where finally
+    -- intros
+    -- sorry
+
+  mod def Equiv.cast extends CPS.Equiv.cast
+end CPSNat
+-- #exit
+modular (name := `CPSFixNat)
+  namespace CPSFixNat
+
+  inductive Tag extends CPSFix.Tag, CPSNat.Tag
+  open Tag
+
+  inductive PreTy extends CPSFix.PreTy, CPSNat.PreTy
+
+  inductive PreTy.Equiv extends CPSFix.PreTy.Equiv, CPSNat.PreTy.Equiv
+
+  attribute [grind .] PreTy.Equiv.not_not PreTy.Equiv.not PreTy.Equiv.times PreTy.Equiv.refl PreTy.Equiv.symm
+
+  attribute [grind =] Quotient.eq
+
+  grind_pattern PreTy.Equiv.trans => PreTy.Equiv A B, PreTy.Equiv B C
+
+  @[reducible]
+  mod def Ty extends CPSFix.Ty, CPSNat.Ty
+
+  mod def Ty.nat extends CPSNat.Ty.nat
+
+  mod def Ty.not extends CPSFix.Ty.not, CPSNat.Ty.not
+
+  @[simp]
+  mod def Ty.not_not extends CPSFix.Ty.not_not, CPSNat.Ty.not_not
+
+  mod def Ty.times extends CPSFix.Ty.times, CPSNat.Ty.times
+
+  set_option match.ignoreUnusedAlts true
+  @[reducible]
+  mod def Tag.Data extends CPSFix.Tag.Data, CPSNat.Tag.Data
+
+  @[reducible]
+  mod def Ctx extends CPSFix.Ctx, CPSNat.Ctx
+
+  mod def Expr._proof_1 extends CPSFix.Expr._proof_1, CPSNat.Expr._proof_1
+
+  inductive Expr extends CPSFix.Expr, CPSNat.Expr
+  mod def Expr.zero._proof_1 extends CPSFix.Expr.zero._proof_1, CPSNat.Expr.zero._proof_1
+  mod def Expr.zero._proof_2 extends CPSFix.Expr.zero._proof_2, CPSNat.Expr.zero._proof_2
+  mod def Expr.zero extends CPSFix.Expr.zero, CPSNat.Expr.zero
+
+  mod def Ren extends CPSFix.Ren, CPSNat.Ren
+  -- set_option match.ignoreUnusedAlts true in
+  mod def Ren.lift' extends CPSFix.Ren.lift', CPSNat.Ren.lift'
+  -- TODO fix `mod def` elab s.t it accepts decls for which auxiliary decls appear in their type
+  mod def Ren.lift._proof_1 extends CPSFix.Ren.lift._proof_1, CPSNat.Ren.lift._proof_1
+  mod def Ren.lift._proof_3 extends CPSFix.Ren.lift._proof_3, CPSNat.Ren.lift._proof_3
+  mod def Ren.lift extends CPSFix.Ren.lift, CPSNat.Ren.lift
+  attribute [implicit_reducible] Ren Ren.lift
+  mod def Ren.wk extends CPSFix.Ren.wk, CPSNat.Ren.wk
+
+  mod def Expr.ren._proof_1 extends CPSFix.Expr.ren._proof_1, CPSNat.Expr.ren._proof_1 where
+  mod def Expr.ren extends CPSFix.Expr.ren, CPSNat.Expr.ren
+
+  mod def Expr.lift extends CPSFix.Expr.lift, CPSNat.Expr.lift
+
+  mod def Sub extends CPSFix.Sub, CPSNat.Sub
+  attribute [implicit_reducible] Sub
+  mod def Sub.id   extends CPSFix.Sub.id, CPSNat.Sub.id
+  mod def Sub.wk   extends CPSFix.Sub.wk, CPSNat.Sub.wk
+  mod def Sub.snoc extends CPSFix.Sub.snoc, CPSNat.Sub.snoc
+  mod def Sub.lift extends CPSFix.Sub.lift, CPSNat.Sub.lift
+
+  mod def Expr.subst extends CPSFix.Expr.subst, CPSNat.Expr.subst
+
+  inductive Equiv extends CPSFix.Equiv, CPSNat.Equiv
+
+  mod def Equiv.equiv  extends CPSFix.Equiv.equiv, CPSNat.Equiv.equiv
+  mod def Equiv.setoid extends CPSFix.Equiv.setoid, CPSNat.Equiv.setoid
+
+  mod def Ren.comp._proof_1 extends CPSFix.Ren.comp._proof_1, CPSNat.Ren.comp._proof_1
+  mod def Ren.comp extends CPSFix.Ren.comp, CPSNat.Ren.comp
+
+  mod def Ren.lift_comp_lift extends CPSFix.Ren.lift_comp_lift, CPSNat.Ren.lift_comp_lift
+
+  mod def Expr.ren_of_ren_ren extends CPSFix.Expr.ren_of_ren_ren, CPSNat.Expr.ren_of_ren_ren
+
+  mod def Expr.ren_lift_wk extends CPSFix.Expr.ren_lift_wk, CPSNat.Expr.ren_lift_wk
+
+  mod def Expr.lift_ren_lift extends CPSFix.Expr.lift_ren_lift, CPSNat.Expr.lift_ren_lift
+
+  mod def Sub.ren_comp extends CPSFix.Sub.ren_comp, CPSNat.Sub.ren_comp
+
+  mod def Sub.comp_ren._proof_1 extends CPSFix.Sub.comp_ren._proof_1, CPSNat.Sub.comp_ren._proof_1
+  mod def Sub.comp_ren extends CPSFix.Sub.comp_ren, CPSNat.Sub.comp_ren
+
+  @[simp]
+  mod def Sub.snoc_comp_ren_wk extends CPSFix.Sub.snoc_comp_ren_wk, CPSNat.Sub.snoc_comp_ren_wk
+
+  mod def Sub.comp extends CPSFix.Sub.comp, CPSNat.Sub.comp
+
+  @[simp]
+  mod def Sub.wk_snoc_zero extends CPSFix.Sub.wk_snoc_zero, CPSNat.Sub.wk_snoc_zero
+
+  @[simp]
+  mod def Expr.subst_lift_zero extends CPSFix.Expr.subst_lift_zero, CPSNat.Expr.subst_lift_zero
+
+  @[simp]
+  mod def Expr.subst_snoc_zero extends CPSFix.Expr.subst_snoc_zero, CPSNat.Expr.subst_snoc_zero
+
+  @[simp]
+  mod def Expr.subst_snoc_succ extends CPSFix.Expr.subst_snoc_succ, CPSNat.Expr.subst_snoc_succ
+
+  @[simp]
+  mod def Expr.subst_lift_succ extends CPSFix.Expr.subst_lift_succ, CPSNat.Expr.subst_lift_succ
+
+  mod def Sub.ren_comp_lift extends CPSFix.Sub.ren_comp_lift, CPSNat.Sub.ren_comp_lift
+
+  mod def Sub.wk_of_lift_comp_ren_wk extends CPSFix.Sub.wk_of_lift_comp_ren_wk, CPSNat.Sub.wk_of_lift_comp_ren_wk
+
+  mod def Sub.head extends CPSFix.Sub.head, CPSNat.Sub.head
+  mod def Sub.tail extends CPSFix.Sub.tail, CPSNat.Sub.tail
+  mod def Sub.eta  extends CPSFix.Sub.eta, CPSNat.Sub.eta
+
+  mod def Sub.Zshift' extends CPSFix.Sub.Zshift', CPSNat.Sub.Zshift'
+
+  mod def Sub.Zshift extends CPSFix.Sub.Zshift, CPSNat.Sub.Zshift
+
+  mod def Sub.idR extends CPSFix.Sub.idR, CPSNat.Sub.idR
+
+  @[simp]
+  mod def Expr.subst_id extends CPSFix.Expr.subst_id, CPSNat.Expr.subst_id
+
+  @[simp]
+  mod def Sub.idL extends CPS.Sub.idL
+
+  mod def Expr.subst_comp_ren_lift extends CPSFix.Expr.subst_comp_ren_lift, CPSNat.Expr.subst_comp_ren_lift
+
+  mod def Expr.subst_ren extends CPSFix.Expr.subst_ren, CPSNat.Expr.subst_ren
+
+  @[simp]
+  mod def Ren.lift_succ extends CPSFix.Ren.lift_succ, CPSNat.Ren.lift_succ
+
+  @[simp]
+  mod def Sub.lift_succ extends CPSFix.Sub.lift_succ, CPSNat.Sub.lift_succ
+
+  -- TODO fix this issue...
+  mod def Expr.ren.hcongr_6' extends CPSFix.Expr.ren.hcongr_6', CPSNat.Expr.ren.hcongr_6'
+  mod def Expr.ren_comp_subst_lift._proof_1_4 extends CPSFix.Expr.ren_comp_subst_lift._proof_1_4, CPSNat.Expr.ren_comp_subst_lift._proof_1_4
+  mod def Expr.ren_comp_subst_lift._proof_1_5 extends CPSFix.Expr.ren_comp_subst_lift._proof_1_5, CPSNat.Expr.ren_comp_subst_lift._proof_1_5
+  mod def Expr.ren_comp_subst_lift._proof_1_6 extends CPSFix.Expr.ren_comp_subst_lift._proof_1_6, CPSNat.Expr.ren_comp_subst_lift._proof_1_6
+  mod def Expr.ren_comp_subst_lift._proof_1_10 extends CPSFix.Expr.ren_comp_subst_lift._proof_1_10, CPSNat.Expr.ren_comp_subst_lift._proof_1_10
+  mod def Expr.ren_comp_subst_lift._proof_1_11 extends CPSFix.Expr.ren_comp_subst_lift._proof_1_11, CPSNat.Expr.ren_comp_subst_lift._proof_1_11
+  mod def Expr.ren_comp_subst_lift._proof_1_12 extends CPSFix.Expr.ren_comp_subst_lift._proof_1_12, CPSNat.Expr.ren_comp_subst_lift._proof_1_12
+  mod def Expr.ren_comp_subst_lift._proof_1_13 extends CPSFix.Expr.ren_comp_subst_lift._proof_1_13, CPSNat.Expr.ren_comp_subst_lift._proof_1_13
+  mod def Expr.ren_comp_subst_lift extends CPSFix.Expr.ren_comp_subst_lift, CPSNat.Expr.ren_comp_subst_lift
+
+  mod def Expr.ren_subst extends CPSFix.Expr.ren_subst, CPSNat.Expr.ren_subst
+
+  mod def Expr.lift_subst_lift extends CPSFix.Expr.lift_subst_lift , CPSNat.Expr.lift_subst_lift
+
+  @[simp]
+  mod def Sub.comp_lift extends CPSFix.Sub.comp_lift, CPSNat.Sub.comp_lift
+
+  mod def Expr.subst_subst extends CPSFix.Expr.subst_subst , CPSNat.Expr.subst_subst
+
+  mod def Expr.cast_val._proof_1 extends CPSFix.Expr.cast_val._proof_1, CPSNat.Expr.cast_val._proof_1
+  mod def Expr.cast_val extends CPSFix.Expr.cast_val, CPSNat.Expr.cast_val
+
+  -- mod def Equiv.ren extends CPS.Equiv.ren where finally
+    -- intros
+    -- simp only [subst, Fin.getElem_fin, Sub.comp, *]
+    -- rw [Sub.comp_lift, Sub.comp_lift]
+
+  -- mod def Equiv.subst extends CPS.Equiv.subst where finally
+    -- intros
+    -- sorry
+
+  mod def Equiv.cast extends CPSFix.Equiv.cast, CPSNat.Equiv.cast
+end CPSFixNat
 
 def STLC.Tag.toCPS : Tag → CPS.Tag
   | dummy => .dummy
   | val => .val
   | exp => .exp
 
-def STLC.Ty.toCPS : STLC.Ty → CPS.Ty
+abbrev STLC.Ty.toCPS : STLC.Ty → CPS.Ty
   | .arr A B => (A.toCPS.times B.toCPS.not).not
 
 def STLC.Ctx.toCPS (Γ : STLC.Ctx) : CPS.Ctx := Γ.map STLC.Ty.toCPS
@@ -869,7 +1290,7 @@ def STLC.Expr.toCPS : Expr Γ t A → STLC.ToExprType Γ t A
     have e := e.toCPS.lam
     have e' := e'.toCPS.lam
     rw [CPS.Ty.not_not] at e e'
-    refine CPS.Expr.app (e.subst CPS.Sub.id.wk) (.and_intro (e'.subst CPS.Sub.id.wk) CPS.Expr.zero)
+    exact CPS.Expr.app (e.subst CPS.Sub.id.wk) (.and_intro (e'.subst CPS.Sub.id.wk) CPS.Expr.zero)
 
 @[simp]
 theorem STLC.Ctx.getElem_toCPS (Γ : STLC.Ctx) (n : Nat) (h : n < Γ.length) :
@@ -897,6 +1318,79 @@ def STLC.Sub.toCPS (σ : Sub Γ Δ) : CPS.Sub Γ.toCPS Δ.toCPS := fun n => by
 
 -- def STLC.Expst.subst_toCPS (σ : Sub Γ Δ) : (Expr.subst σ t).toCPS = CPS.Expr.subst σ.toCPS t.toCPS
 
+theorem CPS.Expr.cast_subst {A B : t.Data} {σ : Sub Δ Γ} (h : A = B) (h₁ : Expr Γ t A = Expr Γ t B) (h₂ : Expr Δ t A = Expr Δ t B)  (e : Expr Γ t A) : (cast h₁ e).subst σ = cast h₂ (e.subst σ) := by
+  cases h
+  rfl
+
+theorem CPS.Expr.cast_lam (h : A = B) (h₁ : Expr (A::Γ) .exp () = Expr (B::Γ) .exp ()) (h₂ : Expr Γ .val A.not = Expr Γ .val B.not)  (e : Expr (A::Γ) .exp ()) : (cast h₁ e).lam = cast h₂ e.lam := by
+  cases h
+  rfl
+
+section Delab
+
+open Lean PrettyPrinter Delaborator SubExpr
+
+@[app_delab STLC.Tag.toCPS]
+def delabTagToCPS : Delab := do
+  let e ← getExpr
+  guard $ e.isAppOfArity' ``STLC.Tag.toCPS 1
+  let arg ← withAppArg delab
+  `(⟦ $arg ⟧)
+
+@[app_delab STLC.Ty.toCPS]
+def delabTyToCPS : Delab := do
+  let e ← getExpr
+  guard $ e.isAppOfArity' ``STLC.Ty.toCPS 1
+  let arg ← withAppArg delab
+  `(⟦ $arg ⟧)
+
+@[app_delab STLC.Ctx.toCPS]
+def delabCtxToCPS : Delab := do
+  let e ← getExpr
+  guard $ e.isAppOfArity' ``STLC.Ctx.toCPS 1
+  let arg ← withAppArg delab
+  `(⟦ $arg ⟧)
+
+@[app_delab STLC.Expr.toCPS]
+def delabExprToCPS : Delab := do
+  let e ← getExpr
+  guard $ e.isAppOfArity' ``STLC.Expr.toCPS 4
+  let arg ← withAppArg delab
+  `(⟦ $arg ⟧)
+
+@[app_delab CPS.Expr.app]
+def delabCPSApp : Delab := do
+  let e ← getExpr
+  guard $ e.isAppOfArity' ``CPS.Expr.app 4
+  let v ← withAppArg delab
+  let e ← withAppFn <| withAppArg delab
+  `($e $v)
+
+@[app_delab STLC.Expr.subst]
+def delabSTLCsubst : Delab := do
+  let e ← getExpr
+  guard $ e.isAppOfArity' ``STLC.Expr.subst 6
+  let e ← withAppArg delab
+  let σ ← withAppFn <| withAppArg delab
+  `($e[$σ])
+
+@[app_delab CPS.Expr.subst]
+def delabCPSsubst : Delab := do
+  let e ← getExpr
+  guard $ e.isAppOfArity' ``CPS.Expr.subst 6
+  let e ← withAppArg delab
+  let σ ← withAppFn <| withAppArg delab
+  `($e[$σ])
+
+@[app_delab CPS.Expr.zero, app_delab STLC.Expr.zero]
+def delabExprZero : Delab := `(0)
+
+end Delab
+
+set_option backward.isDefEq.respectTransparency.types false
+set_option backward.isDefEq.respectTransparency false
+set_option backward.isDefEq.implicitBump false
+set_option backward.isDefEq.lazyWhnfCore false
 theorem STLC.Equiv.toCPS (e e' : Expr Γ t A) (h : Equiv e e') : CPS.Equiv e.toCPS e'.toCPS := by
   induction h
   case refl => exact .refl
@@ -924,4 +1418,18 @@ theorem STLC.Equiv.toCPS (e e' : Expr Γ t A) (h : Equiv e e') : CPS.Equiv e.toC
         apply CPS.Equiv.lam
         assumption
       · exact .refl
-  case beta => sorry
+  case beta A Γ B e v =>
+    have v := v.toCPS
+    have e := e.lam.toCPS
+    dsimp [ToExprType, ToCtx, Tag.toCPS, Tag.ToData, Ty.toCPS] at e v
+    simp [CPS.Expr.lift]
+    rw [CPS.Expr.cast_subst (CPS.Ty.not_not _), CPS.Expr.cast_subst (CPS.Ty.not_not _)]
+    case h₂ => rw [CPS.Ty.not_not]
+    case h₂ => rw [CPS.Ty.not_not]
+    simp [CPS.Expr.subst, CPS.Expr.ren_subst, CPS.Expr.subst_subst]
+    rw [← CPS.Expr.cast_lam (h := CPS.Ty.not_not _)]
+    case h₁ => rw [CPS.Ty.not_not]
+    -- set_option trace.Meta.isDefEq true in
+    -- set_option trace.Meta.whnf true in
+    -- rw [← CPS.Expr.cast_lam (h := CPS.Ty.not_not _)]
+    sorry
