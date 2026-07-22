@@ -579,8 +579,6 @@ theorem Expr.subst_subst  {σ₁ : Sub Γ Δ} {σ₂ : Sub Δ Φ} (v : Expr Φ t
 
 theorem Expr.cast_val {h : Γ[n] = A}(e : A = B) : e ▸ Expr.var n h = Expr.var n h' := by cases e; rfl
 
-
-
 theorem Equiv.ren {r : Ren Γ Δ} (e₁ e₂ : Expr Δ t A) : Equiv e₁ e₂ → Equiv (e₁.ren r) (e₂.ren r) := by
   intro h
   induction h generalizing Γ
@@ -860,7 +858,6 @@ modular (name := `CPSFix)
     intros
     simp only [Sub.comp_lift, Expr.subst, *]
 
-
   mod def Expr.cast_val._proof_1 extends CPS.Expr.cast_val._proof_1
   mod def Expr.cast_val extends CPS.Expr.cast_val
 
@@ -1112,50 +1109,50 @@ modular (name := `CPSNat)
   mod def Expr.cast_val._proof_1 extends CPS.Expr.cast_val._proof_1
   mod def Expr.cast_val extends CPS.Expr.cast_val
 
-
-modular (name := `CPSNat') (imports := #[`CPSNat])
-
-  mod def Equiv.ren extends CPS.Equiv.ren where finally
+  mod def Equiv.ren extends CPS.Equiv.ren where
+    finally
     · intros _ _ _ _ ih _ _
-      apply CPSNat.Equiv.S
+      apply Equiv.S
       apply ih
-    · intros _ _ _ _ _ _ _ ih₁ ih₂ _ _
+    · intros _ _ _ _ _ _ _  ih₁ ih₂ _ _
       apply CPSNat.Equiv.nat_match
       · apply ih₁
       · apply ih₂
-    · intros _ _ _ _ _
+    · intros
       apply CPSNat.Equiv.match_zero
-    · intros _ P0 PS n _ r
-      convert CPSNat.Equiv.match_succ (P0 := P0.ren r) (PS := PS.ren r.lift) (n := n.ren r)
-      · rfl
-      · simp [Expr.ren_subst, Expr.subst_ren]
+    · intros _ _ e v _ r
+      simp [Expr.ren]
+      have : Expr.subst (Sub.id.snoc (Expr.ren r v)) (Expr.ren r.lift e) = Expr.ren r (Expr.subst (Sub.id.snoc v) e) := by
+        simp [Expr.ren_subst, Expr.subst_ren]
         congr 1
         funext ⟨x,_⟩
         cases x
-        · rfl
-        · symm
-          apply Expr.cast_val
+        case zero => rfl
+        case succ x h => apply Expr.cast_val
+      rw [← this]
+      apply CPSNat.Equiv.match_succ
 
   mod def Equiv.subst extends CPS.Equiv.subst where finally
     · intros _ _ _ _ ih _ _
-      apply CPSNat.Equiv.S
+      apply Equiv.S
       apply ih
-    · intros _ _ _ _ _ _ _ ih₁ ih₂ _ _
+    · intros _ _ _ _ _ _ _  ih₁ ih₂ _ _
       apply CPSNat.Equiv.nat_match
       · apply ih₁
       · apply ih₂
-    · intros _ _ _ _ _
+    · intros
       apply CPSNat.Equiv.match_zero
-    · intros _ P0 PS n _ σ
-      have a := CPSNat.Equiv.match_succ (P0 := P0.subst σ) (PS := PS.subst σ.lift) (n := n.subst σ)
-      simp [Expr.subst, Expr.subst_subst] at a ⊢
-      have : σ.comp (Sub.id.snoc n) = (Sub.id.snoc (Expr.subst σ n)).comp σ.lift := by
+    · intros _ _ e v _ σ
+      simp [Expr.subst]
+      have : Expr.subst (Sub.id.snoc (Expr.subst σ v)) (Expr.subst σ.lift e) = Expr.subst σ (Expr.subst (Sub.id.snoc v) e) := by
+        simp [Expr.subst_subst]
+        congr 1
         funext ⟨x,_⟩
         cases x
-        · rfl
-        · simp [Sub.comp, Sub.lift, Sub.id, Expr.subst, Expr.lift, Expr.ren_subst]
-      rw [this]
-      exact a
+        case zero => rfl
+        case succ x h => simp [Sub.comp, Expr.lift, Expr.ren_subst]; rfl
+      rw [← this]
+      apply CPSNat.Equiv.match_succ
 
   mod def Equiv.cast extends CPS.Equiv.cast
   mod def Expr.cast_subst extends CPS.Expr.cast_subst
@@ -1487,6 +1484,122 @@ modular (name := `STLCFix.toCPS) (imports := #[`STLCFix, `CPSFix])
         sorry
 
 end STLCFix
+
+modular (name := `STLCBool.toCPS) (imports := #[`STLCBool, `CPSNat])
+  namespace STLCBool
+
+  @[reducible]
+  mod def Tag.toCPS extends STLC.Tag.toCPS
+
+  @[reducible]
+  mod def Ty.toCPS extends STLC.Ty.toCPS where
+    matcher match_1 with
+      | .bool => .nat
+
+  mod def Ctx.toCPS extends STLC.Ctx.toCPS
+
+  @[simp]
+  mod def Ctx.toCPS_length extends STLC.Ctx.toCPS_length
+
+  @[reducible]
+  mod def ToCtx extends STLC.ToCtx
+
+  @[reducible]
+  mod def Tag.ToData extends STLC.Tag.ToData
+
+  @[reducible]
+  mod def ToExprType extends STLC.ToExprType
+
+  mod def Expr.toCPS._proof_1 extends STLC.Expr.toCPS._proof_1
+  mod def Expr.toCPS._proof_2 extends STLC.Expr.toCPS._proof_2
+  mod def Expr.toCPS._proof_3 extends STLC.Expr.toCPS._proof_3
+
+  mod def Expr.toCPS extends STLC.Expr.toCPS where
+    matcher match_1 with
+      | _, _, .false => .Z
+      | _, _, .true => CPSNat.Expr.Z.S
+      | _, _, .ite b pt pf => (CPSNat.Expr.nat_match (Expr.toCPS pf) (Expr.toCPS pt).lift).app (Expr.toCPS b).lift
+
+  @[simp]
+  mod def Ctx.getElem_toCPS extends STLC.Ctx.getElem_toCPS
+
+  mod def Ren.toCPS._proof_1 extends STLC.Ren.toCPS._proof_1
+  mod def Ren.toCPS._proof_2 extends STLC.Ren.toCPS._proof_2
+  mod def Ren.toCPS._proof_3 extends STLC.Ren.toCPS._proof_3
+  mod def Ren.toCPS._proof_4 extends STLC.Ren.toCPS._proof_4
+  mod def Ren.toCPS extends STLC.Ren.toCPS
+
+  mod def Sub.toCPS._proof_1 extends STLC.Sub.toCPS._proof_1
+  mod def Sub.toCPS._proof_2 extends STLC.Sub.toCPS._proof_2
+  mod def Sub.toCPS extends STLC.Sub.toCPS
+
+  mod def Equiv.toCPS extends STLC.Equiv.toCPS where
+    finally
+      · intro _ _ pt pf
+        have := CPSNat.Equiv.match_succ (n := CPSNat.Expr.Z) (P0 := pf.toCPS) (PS := pt.toCPS.lift)
+        simp [CPSNat.Expr.lift, CPSNat.Expr.ren_subst] at this
+        exact this
+      · intros
+        apply CPSNat.Equiv.match_zero
+      · intros
+        apply CPSNat.Equiv.app
+        · apply CPSNat.Equiv.nat_match
+          · assumption
+          · apply CPSNat.Equiv.ren
+            assumption
+        · apply CPSNat.Equiv.ren
+          assumption
+
+end STLCBool
+
+modular (name := `STLCFixBool.toCPS) (imports := #[`STLCFixBool, `CPSFixNat])
+  namespace STLCFixBool
+
+  @[reducible]
+  mod def Tag.toCPS extends STLCFix.Tag.toCPS, STLCBool.Tag.toCPS
+
+  @[reducible]
+  mod def Ty.toCPS extends STLCFix.Ty.toCPS, STLCBool.Ty.toCPS
+
+  mod def Ctx.toCPS extends STLCFix.Ctx.toCPS, STLCBool.Ctx.toCPS
+
+  @[simp]
+  mod def Ctx.toCPS_length extends STLCFix.Ctx.toCPS_length, STLCBool.Ctx.toCPS_length
+
+  set_option match.ignoreUnusedAlts true
+  @[reducible]
+  mod def ToCtx extends STLCFix.ToCtx, STLCBool.ToCtx
+
+
+  @[reducible]
+  mod def Tag.ToData extends STLCFix.Tag.ToData, STLCBool.Tag.ToData
+
+  @[reducible]
+  mod def ToExprType extends STLC.ToExprType
+
+  mod def Expr.toCPS._proof_1 extends STLC.Expr.toCPS._proof_1
+  mod def Expr.toCPS._proof_2 extends STLC.Expr.toCPS._proof_2
+  mod def Expr.toCPS._proof_3 extends STLC.Expr.toCPS._proof_3
+
+  mod def Expr.toCPS extends STLC.Expr.toCPS
+
+  @[simp]
+  mod def Ctx.getElem_toCPS extends STLC.Ctx.getElem_toCPS
+
+  mod def Ren.toCPS._proof_1 extends STLC.Ren.toCPS._proof_1
+  mod def Ren.toCPS._proof_2 extends STLC.Ren.toCPS._proof_2
+  mod def Ren.toCPS._proof_3 extends STLC.Ren.toCPS._proof_3
+  mod def Ren.toCPS._proof_4 extends STLC.Ren.toCPS._proof_4
+  mod def Ren.toCPS extends STLC.Ren.toCPS
+
+  mod def Sub.toCPS._proof_1 extends STLC.Sub.toCPS._proof_1
+  mod def Sub.toCPS._proof_2 extends STLC.Sub.toCPS._proof_2
+  mod def Sub.toCPS extends STLC.Sub.toCPS
+
+  mod def Equiv.toCPS extends STLC.Equiv.toCPS
+
+end STLCFixBool
+
 
 #exit
 section Delab
