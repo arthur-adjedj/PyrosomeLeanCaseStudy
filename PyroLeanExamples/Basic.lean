@@ -65,6 +65,9 @@ def Sub.lift (σ : Sub Γ Δ) : Sub (A::Γ) (A::Δ)
   | 0 => Expr.zero
   | ⟨n+1,h⟩ => σ ⟨n,Nat.lt_of_succ_lt_succ h⟩ |>.lift
 
+@[simp]
+theorem Sub.lift_succ (σ : Sub Γ Δ) : σ.lift (A := A) n.succ = (σ n).lift := rfl
+
 def Expr.subst (σ : Sub Γ Δ) : Expr Δ t A → Expr Γ t A
   | .var n h => h ▸ σ n
 
@@ -136,6 +139,8 @@ modular (name := `STLC)
   mod def Sub.snoc extends Base.Sub.snoc
 
   mod def Sub.lift extends Base.Sub.lift
+  @[simp]
+  mod def Sub.lift_succ extends Base.Sub.lift_succ
 
   mod def Expr.subst extends Base.Expr.subst where
     matcher match_1 with
@@ -422,7 +427,7 @@ modular (name := `CPS)
   mod def Equiv.equiv extends Base.Equiv.equiv
   mod def Equiv.setoid extends Base.Equiv.setoid
 
-def Expr.Sub.and (σ : Sub Γ Δ) : Sub ((Ty.times A B)::Γ) (B::A::Δ)
+def Sub.and (σ : Sub Γ Δ) : Sub ((Ty.times A B)::Γ) (B::A::Δ)
   | 0 => Expr.zero.snd
   | 1 => Expr.zero.fst
   | ⟨n+2,h⟩ => (σ ⟨n,Nat.lt_of_succ_lt_succ (Nat.lt_of_succ_lt_succ h)⟩).lift
@@ -540,9 +545,6 @@ theorem Expr.subst_ren (t : Expr Φ t A) (ρ : Ren Γ Δ) (σ : Sub Δ Φ) : (t.
 
 @[simp]
 theorem Ren.lift_succ (ρ : Ren Γ Δ) : (ρ.lift (A := A)).val n.succ = (ρ.val n).succ := rfl
-
--- @[simp]
--- theorem Sub.lift_succ (σ : Sub Γ Δ) : (σ.lift (A := A)) n.succ = (σ n).lift := rfl
 
 theorem Expr.ren_comp_subst_lift (ρ : Ren Δ Γ) (σ : Sub Φ Δ) : (σ.comp_ren ρ).lift (A := A) = (σ.lift.comp_ren ρ.lift) := by
   funext n
@@ -898,14 +900,11 @@ modular (name := `CPSFix)
         funext x
         cases x using Fin.cases
         case zero => rfl
-        case succ x h =>
-          cases x
-          · simp [Sub.ren_comp, Sub.comp_ren]
-            --rw [Ren.lift_succ]
-            sorry
+        case succ x =>
+          cases x using Fin.cases
+          · rfl
           · symm
-            --apply Expr.cast_val'
-            sorry
+            apply Expr.cast_val'
       rw [this]
       apply CPSFix.Equiv.fix_beta
 
@@ -921,12 +920,11 @@ modular (name := `CPSFix)
         funext x
         cases x using Fin.cases
         case zero => rfl
-        case succ x h =>
-          cases x
+        case succ x =>
+          cases x using Fin.cases
+          · rfl
           · simp [Sub.comp, Expr.lift, Expr.ren_subst]
-            sorry
-          · simp [Sub.comp, Expr.lift, Expr.ren_subst]
-            sorry
+            rfl
       rw [this]
       apply Equiv.fix_beta
 
@@ -1385,7 +1383,7 @@ abbrev ToExprType (Γ : STLC.Ctx) (t : STLC.Tag) (A: t.Data) : Type :=
 def Expr.toCPS : Expr Γ t A → STLC.ToExprType Γ t A
   | var ⟨n,h₁⟩ h₂ => .var ⟨n,by simp [*]⟩ (by simp [*]; congr)
   | ret v => .app .zero v.toCPS.lift
-  | lam e => .lam (e.toCPS.subst (CPS.Expr.Sub.and CPS.Sub.id))
+  | lam e => .lam (e.toCPS.subst (CPS.Sub.and CPS.Sub.id))
   | @app _ A B e e' => by
     have e := CPS.Expr.not_of_not_not_not _ e.toCPS.lam
     have e' := e'.toCPS.lam
@@ -1410,10 +1408,28 @@ def Ren.toCPS (ρ : Ren Γ Δ) : CPS.Ren Γ.toCPS Δ.toCPS where
     congr 1
     exact ρ.property (n.cast (Ctx.toCPS_length _))
 
+@[simp]
+theorem Ren.lift_toCPS (ρ : Ren Γ Δ) : (ρ.lift (A := A)).toCPS = ρ.toCPS.lift := by
+  obtain ⟨ρ,_⟩ := ρ
+  rw [lift, CPS.Ren.lift, Ren.toCPS]
+  congr
+  funext n
+  cases n using Fin.cases <;> rfl
+
 def Sub.toCPS (σ : Sub Γ Δ) : CPS.Sub Γ.toCPS Δ.toCPS := fun n => by
   have := (σ (Fin.cast (Ctx.toCPS_length _) n)).toCPS
   simp only [Fin.getElem_fin, Fin.val_cast, ToExprType, ToCtx, Ctx.getElem_toCPS] at this
   exact this
+
+theorem CPS.Expr.subst_and_lift_lift (σ : CPS.Sub Γ Δ) : CPS.Expr.subst (CPS.Sub.and σ) ((t.lift (B := A)).lift (B := B)) = (CPS.Expr.subst σ t).lift := sorry
+
+@[simp]
+theorem Sub.lift_toCPS (σ : Sub Γ Δ) : (σ.lift (A := A)).toCPS = σ.toCPS.lift := by
+  funext n
+  induction n using Fin.inductionOn
+  · rfl
+  · sorry
+
 
 @[simp]
 theorem Sub.id_toCPS : (@id Γ).toCPS = CPS.Sub.id := by
@@ -1456,14 +1472,26 @@ theorem Expr.ren_toCPS (e : Expr Δ t A) (ρ : Ren Γ Δ) : (e.ren ρ).toCPS = (
     case succ n =>
       cases n using Fin.cases
       · rfl
-      · simp [CPS.Sub.comp_ren, Ren.toCPS]; sorry
-  case app  A B a b iha ihb =>
+      · rw [CPS.Sub.comp_ren, CPS.Sub.ren_comp]
+        simp [CPS.Ren.lift_succ, Ren.toCPS]
+        apply CPS.Expr.cast_val'
+  case app A B a b iha ihb =>
     simp [CPS.Expr.subst, CPS.Expr.ren, CPS.Expr.subst_ren, CPS.Expr.lift, CPS.Expr.ren_subst, CPS.Expr.not_of_not_not_not, ← CPS.Sub.comp_ren_lift, ← CPS.Sub.ren_comp_lift, CPS.Expr.ren_of_ren_ren]
     and_intros
     · congr
-      sorry
+      funext x
+      cases x using Fin.cases
+      case zero => rfl
+      case succ x => apply CPS.Expr.cast_val'
     · rfl
-    · sorry
+    · rw [CPS.Expr.cast_ren]
+      all_goals try first | rfl | rw [CPS.Ty.not_not]
+      simp only [cast_eq]
+      rw [CPS.Expr.cast_ren]
+      all_goals try first | rfl | rw [CPS.Ty.not_not]
+      simp only [cast_eq]
+      rw [← CPS.Expr.ren, CPS.Expr.ren_of_ren_ren]
+      rfl
     · rfl
 
 set_option allowUnsafeReducibility true in
@@ -1487,7 +1515,10 @@ theorem Expr.subst_toCPS (e : Expr Δ t A) (σ : Sub Γ Δ) : (e.subst σ).toCPS
     case succ n =>
       cases n using Fin.cases
       · rfl
-      · simp [CPS.Sub.comp, CPS.Expr.lift, CPS.Expr.ren_subst]; sorry
+      · rw [CPS.Sub.comp, CPS.Sub.comp]
+        simp [CPS.Sub.lift_succ, CPS.Expr.subst_and_lift_lift]
+
+        apply CPS.Expr.cast_val'
   case app ih₁ ih₂ =>
     simp [CPS.Expr.subst, CPS.Expr.ren, CPS.Expr.subst_ren, CPS.Expr.lift, CPS.Expr.ren_subst, CPS.Expr.not_of_not_not_not, ← CPS.Sub.comp_ren_lift, ← CPS.Sub.ren_comp_lift]
     and_intros
