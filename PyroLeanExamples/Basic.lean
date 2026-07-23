@@ -2,6 +2,7 @@ import Lean.PrettyPrinter.Delaborator.Basic
 import LeanALaCarte
 import Mathlib.Data.Quot
 import Mathlib.Tactic.Convert
+import Mathlib.Tactic.GRewrite.Elab
 import Batteries.Tactic.GeneralizeProofs
 set_option inductive.autoPromoteIndices false
 -- TODO better syntax for match extensions
@@ -26,7 +27,7 @@ abbrev Ctx := List Ty
 inductive Expr : Ctx → (t : Tag) → t.Data → Type where
   | var {Γ A} (n : Fin Γ.length) (h : Γ[n] = A) : Expr Γ val A
 
-def Expr.zero : Expr (A::Γ) val A := var ⟨0,Nat.zero_lt_succ _⟩ rfl
+def Expr.zero : Expr (A::Γ) val A := var 0 rfl
 
 abbrev Ren (Γ Δ : Ctx) := {f : Fin Δ.length → Fin Γ.length // ∀ n, Δ[n] = Γ[f n]}
 
@@ -57,11 +58,11 @@ def Sub.wk (σ : Sub Γ Δ) : Sub (A::Γ) Δ :=
   fun n => (σ n).lift
 
 def Sub.snoc (σ : Sub Γ Δ) (t : Expr Γ val A) : Sub Γ (A::Δ)
-  | ⟨0,_⟩ => t
+  | 0 => t
   | ⟨n+1,h⟩ => σ ⟨n,Nat.lt_of_succ_lt_succ h⟩
 
 def Sub.lift (σ : Sub Γ Δ) : Sub (A::Γ) (A::Δ)
-  | ⟨0,_⟩ => Expr.zero
+  | 0 => Expr.zero
   | ⟨n+1,h⟩ => σ ⟨n,Nat.lt_of_succ_lt_succ h⟩ |>.lift
 
 def Expr.subst (σ : Sub Γ Δ) : Expr Δ t A → Expr Γ t A
@@ -364,7 +365,8 @@ modular (name := `CPS)
     | lam : Expr (A::Γ) exp () → Expr Γ val A.not
     | app : Expr Γ val A.not → Expr Γ val A → Expr Γ exp ()
     | and_intro : Expr Γ val A → Expr Γ val B → Expr Γ val (A.times B)
-    | and_elim : Expr Γ val (A.times B) → Expr (B::A::Γ) exp () → Expr Γ exp ()
+    | fst : Expr Γ val (A.times B) → Expr Γ val A
+    | snd : Expr Γ val (Ty.times A B) → Expr Γ val B
 
   mod def Expr.zero._proof_1 extends Base.Expr.zero._proof_1
   mod def Expr.zero._proof_2 extends Base.Expr.zero._proof_2
@@ -385,7 +387,8 @@ modular (name := `CPS)
     | _, _, .lam e => .lam (Expr.ren r.lift e)
     | _, _, .app f t => .app (Expr.ren r f) (Expr.ren r t)
     | _, _, .and_intro fst snd => .and_intro (Expr.ren r fst) (Expr.ren r snd)
-    | _, _, .and_elim p e => .and_elim (Expr.ren r p) (Expr.ren r.lift.lift e)
+    | _, _, .fst p => .fst (Expr.ren r p)
+    | _, _, .snd p => .snd (Expr.ren r p)
 
   mod def Expr.lift extends Base.Expr.lift
 
@@ -401,7 +404,8 @@ modular (name := `CPS)
       | _, _, .lam f => .lam (Expr.subst σ.lift f)
       | _, _, .app f t => .app (Expr.subst σ f) (Expr.subst σ t)
       | _, _, .and_intro fst snd => .and_intro (Expr.subst σ fst) (Expr.subst σ snd)
-      | _, _, .and_elim p e => .and_elim (Expr.subst σ p) (Expr.subst σ.lift.lift e)
+      | _, _, .fst p => .fst (Expr.subst σ p)
+      | _, _, .snd p => .snd (Expr.subst σ p)
 
   inductive Equiv extends Base.Equiv where
     | lam : Equiv f₁ f₂ → Equiv (.lam f₁) (.lam f₂)
@@ -409,12 +413,19 @@ modular (name := `CPS)
     | beta (e : Expr (A::Γ) .exp ()) (v : Expr Γ .val A): Equiv (.app (.lam e) v) (e.subst (Sub.id.snoc v))
     | eta {v : Expr Γ val (.not A)}: Equiv (.lam (.app v.lift .zero)) v
     | and_intro : Equiv fst₁ fst₂ → Equiv snd₁ snd₂ → Equiv (.and_intro fst₁ snd₁) (.and_intro fst₂ snd₂)
-    | and_elim :  Equiv p₁ p₂ → Equiv e₁ e₂ → Equiv (.and_elim p₁ e₁) (.and_elim p₂ e₂)
-    | eta_and : Equiv (.and_elim (.and_intro fst snd) e) (e.subst (Sub.id |>.snoc snd |>.snoc fst))
+    | fst : Equiv p₁ p₂ → Equiv p₁.fst p₂.fst
+    | snd : Equiv p₁ p₂ → Equiv p₁.snd p₂.snd
+    | fst_beta : Equiv (.fst (.and_intro fst snd)) fst
+    | snd_beta : Equiv (.snd (.and_intro fst snd)) snd
+    | eta_and : Equiv p (.and_intro p.fst p.snd)
 
   mod def Equiv.equiv extends Base.Equiv.equiv
   mod def Equiv.setoid extends Base.Equiv.setoid
 
+def Expr.Sub.and (σ : Sub Γ Δ) : Sub ((Ty.times A B)::Γ) (B::A::Δ)
+  | 0 => Expr.zero.snd
+  | 1 => Expr.zero.fst
+  | ⟨n+2,h⟩ => (σ ⟨n,Nat.lt_of_succ_lt_succ (Nat.lt_of_succ_lt_succ h)⟩).lift
 
 def Ren.comp (r₁ : Ren Γ Δ) (r₂ : Ren Δ Φ) : Ren Γ Φ where
   val := r₁.val ∘ r₂.val
@@ -455,21 +466,21 @@ def Sub.comp (σ₁ : Sub Γ Δ) (σ₂ : Sub Δ Φ) : Sub Γ Φ :=
 theorem Sub.wk_snoc_zero (σ : Sub Γ Δ) : (σ.wk (A := A)).snoc Expr.zero = σ.lift := rfl
 
 @[simp]
-theorem Expr.subst_lift_zero (σ : Sub Γ Δ) : σ.lift (A := A) ⟨0,h⟩ = Expr.zero := rfl
+theorem Sub.lift_zero (σ : Sub Γ Δ) : σ.lift (A := A) ⟨0,h⟩ = Expr.zero := rfl
 
 @[simp]
-theorem Expr.subst_snoc_zero (σ : Sub Γ Δ) : σ.snoc e ⟨0,h⟩ = e := rfl
+theorem Sub.snoc_zero (σ : Sub Γ Δ) : σ.snoc e 0 = e := rfl
 
 @[simp]
-theorem Expr.subst_snoc_succ (σ : Sub Γ Δ) : σ.snoc e ⟨n+1,h⟩ = σ ⟨n,Nat.lt_of_succ_lt_succ h⟩ := rfl
+theorem Sub.snoc_succ (σ : Sub Γ Δ) : σ.snoc e n.succ = σ n := rfl
 
 @[simp]
-theorem Expr.subst_lift_succ (σ : Sub Γ Δ) : σ.lift (A := A) ⟨n+1,h⟩ = (σ ⟨n,Nat.lt_of_succ_lt_succ h⟩).lift := rfl
+theorem Sub.lift_succ (σ : Sub Γ Δ) : σ.lift (A := A) n.succ = (σ n).lift := rfl
 
 theorem Sub.ren_comp_lift {r : Ren Γ Δ} {σ : Sub Δ Φ} : (σ.ren_comp r).lift (A := A) = σ.lift.ren_comp r.lift  := by
-  funext ⟨x,_⟩
+  funext x
   simp
-  cases x
+  cases x using Fin.cases
   · rfl
   · simp [ren_comp, Expr.lift, Expr.ren_of_ren_ren]
     rfl
@@ -487,8 +498,7 @@ theorem Sub.wk_of_lift_comp_ren_wk {σ : Sub Γ Δ} : (σ.lift.comp_ren Ren.wk) 
   funext ⟨x,_⟩
   rw [comp_ren, Sub.wk, Expr.lift, Ren.wk]
   simp only
-  unfold Fin.succ
-  rw [Expr.subst_lift_succ, Expr.lift]
+  rw [Sub.lift_succ, Expr.lift]
 
 theorem Sub.head (σ : Sub Γ Δ) : Expr.subst (σ.snoc t) Expr.zero = t := rfl
 theorem Sub.tail (σ : Sub Γ Δ) : (σ.snoc t).comp Sub.id.wk = σ := rfl
@@ -516,8 +526,8 @@ theorem Sub.idL (σ : Sub Γ Δ) : Sub.comp Sub.id σ = σ := by
   apply Expr.subst_id
 
 theorem Expr.subst_comp_ren_lift (σ : Sub Δ Γ ) (ρ : Ren Φ Δ) : (σ.ren_comp ρ).lift (A := A) = (σ.lift.ren_comp ρ.lift ) := by
-  funext ⟨n,_⟩
-  cases n
+  funext n
+  cases n using Fin.cases
   · rfl
   · simp [Sub.ren_comp, Expr.lift, ren_of_ren_ren]
     rfl
@@ -527,21 +537,19 @@ theorem Expr.subst_ren (t : Expr Φ t A) (ρ : Ren Γ Δ) (σ : Sub Δ Φ) : (t.
   case var h => cases h; rfl
   case lam ih =>
     rw [Expr.subst_comp_ren_lift]
-  case and_elim ih₁ ih₂ =>
-    rw [Expr.subst_comp_ren_lift, Expr.subst_comp_ren_lift]
 
 @[simp]
-theorem Ren.lift_succ (ρ : Ren Γ Δ) : (ρ.lift (A := A)).val ⟨n+1,h⟩ = (ρ.val ⟨n, Nat.lt_of_succ_lt_succ h⟩).succ := rfl
+theorem Ren.lift_succ (ρ : Ren Γ Δ) : (ρ.lift (A := A)).val n.succ = (ρ.val n).succ := rfl
 
-@[simp]
-theorem Sub.lift_succ (σ : Sub Γ Δ) : (σ.lift (A := A)) n.succ = (σ n).lift := rfl
+-- @[simp]
+-- theorem Sub.lift_succ (σ : Sub Γ Δ) : (σ.lift (A := A)) n.succ = (σ n).lift := rfl
 
 theorem Expr.ren_comp_subst_lift (ρ : Ren Δ Γ) (σ : Sub Φ Δ) : (σ.comp_ren ρ).lift (A := A) = (σ.lift.comp_ren ρ.lift) := by
-  funext ⟨n,_⟩
-  cases n
+  funext n
+  cases n using Fin.cases
   case zero => rfl
-  case succ n h =>
-    simp [Sub.comp_ren, Expr.lift]
+  case succ n =>
+    simp [Sub.comp_ren, Expr.lift, Ren.lift_succ]
     grind only [usr Subtype.property]
 
 theorem Expr.ren_subst (t : Expr Φ t A) (σ : Sub Γ Δ) (ρ : Ren  Δ Φ) : (t.ren ρ).subst σ = t.subst (Sub.comp_ren σ ρ) := by
@@ -551,30 +559,22 @@ theorem Expr.ren_subst (t : Expr Φ t A) (σ : Sub Γ Δ) (ρ : Ren  Δ Φ) : (t
     have := ih σ.lift ρ.lift
     rw [← this, ren_comp_subst_lift]
     assumption
-  case and_elim ih₁ ih₂ =>
-    rw [ren_comp_subst_lift, ren_comp_subst_lift]
 
 theorem Expr.lift_subst_lift (t : Expr Δ t B) (σ : Sub Γ Δ) :
 (t.lift (A := B)).subst σ.lift = (t.subst σ).lift (B := A) := by
-  induction t <;> simp [Expr.lift, Expr.ren, Expr.subst] at *
+  induction t <;> simp [Expr.lift, Expr.ren, Expr.subst, *] at *
   case var h => cases h; rfl
   case lam ih =>
     rw [Expr.subst_ren, ← Expr.subst_comp_ren_lift, Expr.ren_subst, ← Expr.ren_comp_subst_lift]
     rfl
-  case and_elim ih₁ ih₂ =>
-    constructor
-    · rw [Expr.subst_ren, Expr.ren_subst]
-      rfl
-    · rw [Expr.subst_ren, ← Expr.subst_comp_ren_lift, Expr.ren_subst, ← Expr.ren_comp_subst_lift, ← Expr.ren_comp_subst_lift , ← Expr.subst_comp_ren_lift]
-      congr 1
   case app ih₁ ih₂ | and_intro ih₁ ih₂ => exact ⟨ih₁ _, ih₂ _⟩
 
 @[simp]
 theorem Sub.comp_lift {σ : Sub Γ Δ} {τ : Sub Δ Φ} : Sub.comp σ.lift τ.lift = (Sub.comp σ τ).lift (A := A) := by
-  funext ⟨x,_⟩
-  cases x --generalizing  Γ Δ Φ
+  funext x
+  cases x using Fin.cases
   case zero => rfl
-  case succ n h =>
+  case succ n =>
     simp [Sub.comp, Expr.lift, Expr.ren_subst , Expr.subst_ren]
     rfl
 
@@ -585,10 +585,9 @@ theorem Expr.subst_subst  {σ₁ : Sub Γ Δ} {σ₂ : Sub Δ Φ} (v : Expr Φ t
     rfl
   case lam A Φ t ih =>
     rw [Sub.comp_lift]
-  case and_elim ih =>
-    rw [Sub.comp_lift, Sub.comp_lift]
 
 theorem Expr.cast_val {h : Γ[n] = A}(e : A = B) : cast (congrArg _ e) (Expr.var n h) = Expr.var n (cast (congrArg _ e) h) := by cases e; rfl
+theorem Expr.cast_val' {h : Γ[n] = A} (e : A = B) : e ▸ (Expr.var n h) = Expr.var n (e ▸ h) := by cases e; rfl
 
 theorem Equiv.ren {r : Ren Γ Δ} (e₁ e₂ : Expr Δ t A) : Equiv e₁ e₂ → Equiv (e₁.ren r) (e₂.ren r) := by
   intro h
@@ -599,26 +598,14 @@ theorem Equiv.ren {r : Ren Γ Δ} (e₁ e₂ : Expr Δ t A) : Equiv e₁ e₂ �
   case lam ih => exact Equiv.lam ih
   case app ih₁ ih₂ => exact Equiv.app ih₁ ih₂
   case and_intro ih₁ ih₂ => exact Equiv.and_intro ih₁ ih₂
-  case and_elim ih₁ ih₂ => exact Equiv.and_elim ih₁ ih₂
+  case eta_and => exact .eta_and
+  case fst ih => exact .fst ih
+  case snd ih => exact .snd ih
+  case fst_beta => exact .fst_beta
+  case snd_beta => exact .snd_beta
   case eta v =>
     simp [Expr.ren, Expr.zero, Expr.lift_ren_lift]
     exact Equiv.eta (v := (Expr.ren r v))
-  case eta_and Δ t fst snd e =>
-    simp [Expr.ren]
-    apply Equiv.trans
-    · apply Equiv.eta_and
-    · have : (e.ren r.lift.lift).subst ((Sub.id.snoc (Expr.ren r snd)).snoc (Expr.ren r fst)) = (e.subst ((Sub.id.snoc snd).snoc fst)).ren r := by
-        simp [Expr.subst_ren, Expr.ren_subst]
-        congr 1
-        funext ⟨x,_⟩
-        cases x
-        case zero => rfl
-        case succ x h =>
-          cases x
-          · rfl
-          · apply Expr.cast_val
-      rw [this]
-      apply Equiv.refl
   case beta =>
     simp [Expr.ren]
     apply Equiv.trans
@@ -627,10 +614,12 @@ theorem Equiv.ren {r : Ren Γ Δ} (e₁ e₂ : Expr Δ t A) : Equiv e₁ e₂ �
       have : (e.ren r.lift).subst (Sub.id.snoc (Expr.ren r v)) = (e.subst (Sub.id.snoc v)).ren r := by
         simp [Expr.subst_ren, Expr.ren_subst]
         congr 1
-        funext ⟨x,_⟩
-        cases x
+        funext x
+        cases x using Fin.cases
         case zero => rfl
-        case succ x h => apply Expr.cast_val
+        case succ x h =>
+          simp [Sub.comp_ren, Sub.ren_comp, Sub.id, Expr.ren]
+          apply Expr.cast_val'
       rw [this]
       apply Equiv.refl
 
@@ -643,34 +632,24 @@ theorem Equiv.subst {σ : Sub Γ Δ} {e₁ e₂ : Expr Δ t A}  : Equiv e₁ e�
   case lam ih => exact Equiv.lam ih
   case app ih₁ ih₂ => exact Equiv.app ih₁ ih₂
   case and_intro ih₁ ih₂ => exact Equiv.and_intro ih₁ ih₂
-  case and_elim ih₁ ih₂ => exact Equiv.and_elim ih₁ ih₂
+  case eta_and => exact .eta_and
+  case fst ih => exact .fst ih
+  case snd ih => exact .snd ih
+  case fst_beta => exact .fst_beta
+  case snd_beta => exact .snd_beta
   case eta v =>
     simp [Expr.subst, Expr.zero, Expr.lift_subst_lift]
     exact Equiv.eta (v := (Expr.subst σ v))
-  case eta_and fst snd e =>
-    apply Equiv.trans Equiv.eta_and
-    have : (Expr.subst ((Sub.id.snoc (Expr.subst σ snd)).snoc (Expr.subst σ fst)) (Expr.subst σ.lift.lift e)) = (Expr.subst σ (Expr.subst ((Sub.id.snoc snd).snoc fst) e)) := by
-      simp [Expr.subst_subst]
-      congr 1
-      funext ⟨n,_⟩
-      cases n
-      case zero => rfl
-      case succ n _ =>
-      cases n
-      · rfl
-      · simp [Sub.comp, Sub.lift, Sub.id, Expr.subst, Expr.lift, Expr.ren_subst]
-    rw [this]
-    apply Equiv.refl
   case beta e v =>
     apply Equiv.trans
     · apply Equiv.beta
     · have : (Expr.subst (Sub.id.snoc (Expr.subst σ v)) (Expr.subst σ.lift e)) = (Expr.subst σ (Expr.subst (Sub.id.snoc v) e)) := by
         simp [Expr.subst_subst]
         congr 1
-        funext ⟨n,_⟩
-        cases n
+        funext n
+        cases n using Fin.cases
         · rfl
-        · simp [Sub.comp, Sub.lift, Sub.id, Expr.subst, Expr.lift, Expr.ren_subst]
+        · simp [Sub.comp, Sub.id, Expr.subst, Expr.lift, Expr.ren_subst]
       rw [this]
       apply Equiv.refl
 
@@ -687,23 +666,39 @@ theorem Expr.cast_ren {A B : t.Data} {ρ : Ren Δ Γ} (h : A = B) (hΓ : Γ = Γ
   rfl
 
 theorem Expr.cast_subst {A B : t.Data} {σ : Sub Δ Γ} (h : A = B) (hΓ : Γ' = Γ) (hΔ : Δ' = Δ) (e : Expr Γ' t A) : (cast (congrArg₂ (Expr · t ·) hΓ h) e).subst σ = cast (congrArg (Expr Δ t) h) ((cast (congrArg (Expr · t A) hΓ) e).subst σ) := by
-  cases h
-  cases hΔ
-  cases hΓ
+  subst h hΔ hΓ
   rfl
 
 theorem Expr.cast_zero (h : A = B) (h₁ : Expr (A::Γ) .val A = Expr (B::Γ) .val B): (cast h₁ Expr.zero) = Expr.zero := by
   cases h
   rfl
 
-theorem Expr.cast_lam (h : A = B) (e : Expr (A::Γ) .exp ()) : (cast (congrArg (λ A => Expr (A::Γ) .exp ()) h) e).lam = cast (congrArg (Expr Γ .val ·.not) h) e.lam := by
-  cases h
+theorem Expr.cast_lam (h : A = B) (hΓ : Γ = Γ') (e : Expr (A::Γ) .exp ()) : (cast (congrArg₂ (λ Γ A => Expr (A::Γ) .exp ()) hΓ h) e).lam = cast (congrArg₂ (Expr · .val ·.not) hΓ h) e.lam := by
+  subst h hΓ
   rfl
 
-theorem Expr.cast_app (hA : A = B) (hΓ : Γ = Γ') (h₁ : Expr Γ exp () = Expr Γ' exp ()) (h₂ : Expr Γ val A = Expr Γ' val B) (h₃ : Expr Γ val A.not = Expr Γ' val B.not) : cast h₁ (Expr.app e₁ e₂) = (cast h₃ e₁).app (cast h₂ e₂) := by
-  cases hA
-  cases hΓ
+theorem congrArg₃ (f : α → β → γ → φ) {x x' : α} {y y' : β} {z z' : γ}
+    (hx : x = x') (hy : y = y')  (hz : z = z'): f x y z = f x' y' z':= by subst hx hy hz; rfl
+
+theorem Expr.cast_and_intro (hA : A = A') (hB : B = B') (hΓ : Γ = Γ') (hx : A.times B = C): cast (congrArg₂ (Expr · val ·) hΓ hx) (Expr.and_intro e₁ e₂) = cast (congrArg (Expr Γ' val) (cast (congrArg₂ (·.times · = C) hA hB) hx)) (Expr.and_intro (cast (congrArg₂ (Expr · val ·) hΓ hA) e₁) (cast (congrArg₂ (Expr · val ·) hΓ hB) e₂)) := by
+  subst hA hB hΓ
   rfl
+
+-- theorem Expr.cast_and_elim (hA : A = A') (hB : B = B') (hΓ : Γ = Γ') : cast (congrArg (Expr · exp ()) hΓ) (Expr.and_elim e₁ e₂) = Expr.and_elim (cast (congrArg₃ (fun Γ A B => Expr Γ val (Ty.times A B)) hΓ hA hB) e₁) (cast (congrArg₃ (fun Γ A B => Expr (B :: A :: Γ) exp ()) hΓ hA hB) e₂) := by
+  -- subst hA hB hΓ
+  -- rfl
+
+theorem Expr.cast_app (hA : A = B) (hΓ : Γ = Γ') : cast (congrArg (Expr · exp ()) hΓ) (Expr.app e₁ e₂) = (cast (congrArg₂ (Expr · val ·.not) hΓ hA) e₁).app (cast (congrArg₂ (Expr · val ·) hΓ hA) e₂) := by
+  subst hA  hΓ
+  rfl
+
+def Expr.not_not (e : Expr Γ val A) : Expr Γ val A.not.not := by
+  apply Expr.lam (Expr.app Expr.zero e.lift)
+
+def Expr.not_of_not_not_not (A : Ty) (e : Expr Γ val A.not.not.not) : Expr Γ val A.not := by
+  apply Expr.lam
+  apply Expr.app (e.lift)
+  exact Expr.not_not Expr.zero
 
 end CPS
 /-
@@ -811,16 +806,16 @@ modular (name := `CPSFix)
   mod def Sub.wk_snoc_zero extends CPS.Sub.wk_snoc_zero
 
   @[simp]
-  mod def Expr.subst_lift_zero extends CPS.Expr.subst_lift_zero
+  mod def Sub.lift_zero extends CPS.Sub.lift_zero
 
   @[simp]
-  mod def Expr.subst_snoc_zero extends CPS.Expr.subst_snoc_zero
+  mod def Sub.snoc_zero extends CPS.Sub.snoc_zero
 
   @[simp]
-  mod def Expr.subst_snoc_succ extends CPS.Expr.subst_snoc_succ
+  mod def Sub.snoc_succ extends CPS.Sub.snoc_succ
 
   @[simp]
-  mod def Expr.subst_lift_succ extends CPS.Expr.subst_lift_succ
+  mod def Sub.lift_succ extends CPS.Sub.lift_succ
 
   mod def Sub.ren_comp_lift extends CPS.Sub.ren_comp_lift
 
@@ -1049,16 +1044,16 @@ modular (name := `CPSNat)
   mod def Sub.wk_snoc_zero extends CPS.Sub.wk_snoc_zero
 
   @[simp]
-  mod def Expr.subst_lift_zero extends CPS.Expr.subst_lift_zero
+  mod def Sub.lift_zero extends CPS.Sub.lift_zero
 
   @[simp]
-  mod def Expr.subst_snoc_zero extends CPS.Expr.subst_snoc_zero
+  mod def Sub.snoc_zero extends CPS.Sub.snoc_zero
 
   @[simp]
-  mod def Expr.subst_snoc_succ extends CPS.Expr.subst_snoc_succ
+  mod def Sub.snoc_succ extends CPS.Sub.snoc_succ
 
   @[simp]
-  mod def Expr.subst_lift_succ extends CPS.Expr.subst_lift_succ
+  mod def Sub.lift_succ extends CPS.Sub.lift_succ
 
   mod def Sub.ren_comp_lift extends CPS.Sub.ren_comp_lift
 
@@ -1284,16 +1279,16 @@ modular (name := `CPSFixNat)
   mod def Sub.wk_snoc_zero extends CPSFix.Sub.wk_snoc_zero, CPSNat.Sub.wk_snoc_zero
 
   @[simp]
-  mod def Expr.subst_lift_zero extends CPSFix.Expr.subst_lift_zero, CPSNat.Expr.subst_lift_zero
+  mod def Sub.lift_zero extends CPSFix.Sub.lift_zero, CPSNat.Sub.lift_zero
 
   @[simp]
-  mod def Expr.subst_snoc_zero extends CPSFix.Expr.subst_snoc_zero, CPSNat.Expr.subst_snoc_zero
+  mod def Sub.snoc_zero extends CPSFix.Sub.snoc_zero, CPSNat.Sub.snoc_zero
 
   @[simp]
-  mod def Expr.subst_snoc_succ extends CPSFix.Expr.subst_snoc_succ, CPSNat.Expr.subst_snoc_succ
+  mod def Sub.snoc_succ extends CPSFix.Sub.snoc_succ, CPSNat.Sub.snoc_succ
 
   @[simp]
-  mod def Expr.subst_lift_succ extends CPSFix.Expr.subst_lift_succ, CPSNat.Expr.subst_lift_succ
+  mod def Sub.lift_succ extends CPSFix.Sub.lift_succ, CPSNat.Sub.lift_succ
 
   mod def Sub.ren_comp_lift extends CPSFix.Sub.ren_comp_lift, CPSNat.Sub.ren_comp_lift
 
@@ -1385,13 +1380,13 @@ abbrev ToExprType (Γ : STLC.Ctx) (t : STLC.Tag) (A: t.Data) : Type :=
 def Expr.toCPS : Expr Γ t A → STLC.ToExprType Γ t A
   | var ⟨n,h₁⟩ h₂ => .var ⟨n,by simp [*]⟩ (by simp [*]; congr)
   | ret v => .app .zero v.toCPS.lift
-  | lam e => .lam (.and_elim .zero (e.toCPS.subst CPS.Sub.id.wk.lift.lift))
+  | lam e => .lam (e.toCPS.subst (CPS.Expr.Sub.and CPS.Sub.id))
   | @app _ A B e e' => by
-    have e := e.toCPS.lam
+    have e := CPS.Expr.not_of_not_not_not _ e.toCPS.lam
     have e' := e'.toCPS.lam
-    rw [CPS.Ty.not_not] at e e'
-    exact CPS.Expr.app (e.subst CPS.Sub.id.wk) (.and_intro (e'.subst CPS.Sub.id.wk) CPS.Expr.zero)
-
+    rw [CPS.Ty.not_not] at e'
+    apply CPS.Expr.app (e.subst CPS.Sub.id.wk)
+    refine CPS.Expr.and_intro e'.lift CPS.Expr.zero
 @[simp]
 theorem Ctx.getElem_toCPS (Γ : STLC.Ctx) (n : Nat) (h : n < Γ.length) :
   Γ[n].toCPS = Γ.toCPS[n]'(STLC.Ctx.toCPS_length _ ▸ h) := by
@@ -1418,7 +1413,7 @@ def Sub.toCPS (σ : Sub Γ Δ) : CPS.Sub Γ.toCPS Δ.toCPS := fun n => by
 @[simp]
 theorem Sub.id_toCPS : (@id Γ).toCPS = CPS.Sub.id := by
   funext ⟨n,_⟩
-  rw [Sub.toCPS, id.eq_def, CPS.Sub.id.eq_def, Expr.toCPS]
+  rw [Sub.toCPS, id, CPS.Sub.id]
   simp
   apply CPS.Expr.cast_val
   rw [Tag.ToData]
@@ -1437,7 +1432,7 @@ theorem Sub.toCPS_apply (σ : Sub Γ Δ) : (σ.toCPS n) = (Ctx.getElem_toCPS ..)
 
 set_option allowUnsafeReducibility true in
 attribute [local reducible] List.map in
-theorem STLC.Expr.ren_toCPS (e : Expr Δ t A) (ρ : Ren Γ Δ) : (e.ren ρ).toCPS = (match t with | .exp => e.toCPS.ren ρ.toCPS.lift | .val => e.toCPS.ren ρ.toCPS) := by
+theorem Expr.ren_toCPS (e : Expr Δ t A) (ρ : Ren Γ Δ) : (e.ren ρ).toCPS = (match t with | .exp => e.toCPS.ren ρ.toCPS.lift | .val => e.toCPS.ren ρ.toCPS) := by
   induction e generalizing Γ <;> simp [Expr.ren, Expr.toCPS, CPS.Expr.ren, *] at *
   case var h =>
     cases h
@@ -1448,37 +1443,27 @@ theorem STLC.Expr.ren_toCPS (e : Expr Δ t A) (ρ : Ren Γ Δ) : (e.ren ρ).toCP
     · rfl
     · rw [CPS.Expr.lift_ren_lift]
   case lam =>
-    constructor
+    rw [CPS.Expr.ren_subst, CPS.Expr.subst_ren]
+    congr 1
+    funext x
+    cases x using Fin.cases
+    case zero => rfl
+    case succ n =>
+      cases n using Fin.cases
+      · rfl
+      · simp [CPS.Sub.comp_ren, Ren.toCPS]; sorry
+  case app  A B a b iha ihb =>
+    simp [CPS.Expr.subst, CPS.Expr.ren, CPS.Expr.subst_ren, CPS.Expr.lift, CPS.Expr.ren_subst, CPS.Expr.not_of_not_not_not, ← CPS.Sub.comp_ren_lift, ← CPS.Sub.ren_comp_lift, CPS.Expr.ren_of_ren_ren]
+    and_intros
+    · congr
+      sorry
     · rfl
-    · rw [CPS.Expr.ren_subst, CPS.Expr.subst_ren]
-      congr 1
-      funext ⟨x,_⟩
-      cases x
-      case zero => rfl
-      case succ n _ =>
-        cases n
-        · rfl
-        · simp [CPS.Sub.comp_ren, CPS.Expr.lift, Ren.toCPS]; sorry
-  case app  =>
-    constructor
-    · rw [CPS.Expr.cast_subst (CPS.Ty.not_not _) (hΓ := rfl) (hΔ := rfl), cast_eq, CPS.Expr.cast_subst (CPS.Ty.not_not _) (hΓ := rfl) (hΔ := rfl),  cast_eq, CPS.Expr.cast_ren (CPS.Ty.not_not _) (hΓ := rfl) (hΔ := rfl)]
-      simp only [cast_eq, cast_inj]
-      · rw [CPS.Expr.subst, CPS.Expr.subst, CPS.Expr.ren_subst, CPS.Expr.ren, CPS.Expr.subst_ren]
-        congr
-        sorry
-      all_goals rw [CPS.Ty.not_not _]
-    constructor
-    · rw [CPS.Expr.cast_subst (CPS.Ty.not_not _) (hΓ := rfl) (hΔ := rfl), cast_eq, CPS.Expr.cast_subst (CPS.Ty.not_not _) (hΓ := rfl) (hΔ := rfl),  cast_eq, CPS.Expr.cast_ren (CPS.Ty.not_not _) (hΓ := rfl) (hΔ := rfl)]
-      simp only [cast_eq, cast_inj]
-      · rw [CPS.Expr.subst, CPS.Expr.subst, CPS.Expr.ren_subst, CPS.Expr.ren, CPS.Expr.subst_ren]
-        congr 4
-        sorry
-      all_goals rw [CPS.Ty.not_not _]
+    · sorry
     · rfl
 
 set_option allowUnsafeReducibility true in
 attribute [local reducible] List.map in
-theorem STLC.Expr.subst_toCPS (e : Expr Δ t A) (σ : Sub Γ Δ) : (e.subst σ).toCPS = (match t with | .exp => e.toCPS.subst σ.toCPS.lift | .val => e.toCPS.subst σ.toCPS) := by
+theorem Expr.subst_toCPS (e : Expr Δ t A) (σ : Sub Γ Δ) : (e.subst σ).toCPS = (match t with | .exp => e.toCPS.subst σ.toCPS.lift | .val => e.toCPS.subst σ.toCPS) := by
   induction e generalizing Γ <;> simp [Expr.subst, Expr.toCPS, CPS.Expr.subst, *] at *
   case var h =>
     cases h
@@ -1489,32 +1474,21 @@ theorem STLC.Expr.subst_toCPS (e : Expr Δ t A) (σ : Sub Γ Δ) : (e.subst σ).
     · rfl
     · rw [CPS.Expr.lift_subst_lift]
   case lam =>
-    constructor
-    · rfl
-    · rw [CPS.Expr.subst_subst, CPS.Expr.subst_subst]
-      congr 1
-      funext ⟨x,_⟩
-      cases x
-      case zero => rfl
-      case succ n _ =>
-        cases n
-        · rfl
-        · simp [CPS.Sub.comp, CPS.Expr.lift, CPS.Expr.ren_subst]; sorry
+    rw [CPS.Expr.subst_subst, CPS.Expr.subst_subst]
+    congr 1
+    funext x
+    cases x using Fin.cases
+    case zero => rfl
+    case succ n =>
+      cases n using Fin.cases
+      · rfl
+      · simp [CPS.Sub.comp, CPS.Expr.lift, CPS.Expr.ren_subst]; sorry
   case app ih₁ ih₂ =>
-    constructor
-    · repeat
-        rw [CPS.Expr.cast_subst (CPS.Ty.not_not _) (hΓ := rfl) (hΔ := rfl)]
-        simp only [cast_inj, cast_eq]
-      · rw [CPS.Expr.subst_subst, CPS.Expr.subst, CPS.Expr.subst_subst, CPS.Expr.subst, CPS.Sub.comp_lift]
-        congr 3
-        sorry
-    constructor
-    · repeat
-        rw [CPS.Expr.cast_subst (CPS.Ty.not_not _) (hΓ := rfl) (hΔ := rfl)]
-        simp only [cast_eq, cast_inj]
-      · rw [CPS.Expr.subst_subst, CPS.Expr.subst, CPS.Expr.subst_subst, CPS.Expr.subst, CPS.Sub.comp_lift]
-        congr 3
-        sorry
+    simp [CPS.Expr.subst, CPS.Expr.ren, CPS.Expr.subst_ren, CPS.Expr.lift, CPS.Expr.ren_subst, CPS.Expr.not_of_not_not_not, ← CPS.Sub.comp_ren_lift, ← CPS.Sub.ren_comp_lift]
+    and_intros
+    · sorry
+    · rfl
+    · sorry
     · rfl
 section Delab
 
@@ -1621,7 +1595,23 @@ def delabCPSRenwk : Delab := do
 def delabExprZero : Delab := `(0)
 
 end Delab
+@[simp]
+theorem CPS.Expr.cast_zero_subst_snoc (h : A = B) (σ : CPS.Sub Γ Δ) : (cast (congrArg (fun B => CPS.Expr (B::Δ) .val A) h) CPS.Expr.zero).subst (σ.snoc t) = cast (congrArg (CPS.Expr Γ CPS.Tag.val) h.symm) t := by
+  cases h
+  rfl
 
+@[simp]
+theorem CPS.Expr.zero_subst_lift (σ : CPS.Sub Γ Δ) : CPS.Expr.zero.subst (σ.lift (A := A)) = CPS.Expr.zero := by
+  rfl
+
+@[simp]
+theorem CPS.Expr.cast_zero_subst_lift (h : A = B) (hΔ : Δ = Δ') (σ : CPS.Sub Γ Δ) : (cast (congrArg₂ (fun Δ B => CPS.Expr (B::Δ) .val A) hΔ.symm h) CPS.Expr.zero).subst (σ.lift) = cast (congrArg (fun B => CPS.Expr (B :: Γ) CPS.Tag.val A) h) CPS.Expr.zero := by
+  subst h hΔ
+  rfl
+
+attribute [local implicit_reducible] List.map
+
+set_option linter.tacticCheckInstances true
 theorem Equiv.toCPS (e e' : Expr Γ t A) (h : Equiv e e') : CPS.Equiv e.toCPS e'.toCPS := by
   induction h
   case refl => exact .refl
@@ -1634,7 +1624,6 @@ theorem Equiv.toCPS (e e' : Expr Γ t A) (h : Equiv e e') : CPS.Equiv e.toCPS e'
     assumption
   case lam ih =>
     apply CPS.Equiv.lam
-    apply CPS.Equiv.and_elim .refl
     apply CPS.Equiv.subst
     assumption
   case app ih₁ ih₂ =>
@@ -1658,15 +1647,13 @@ theorem Equiv.toCPS (e e' : Expr Γ t A) (h : Equiv e e') : CPS.Equiv e.toCPS e'
     simp only [CPS.Expr.subst, cast_eq]
     rw [← CPS.Expr.cast_lam (h := CPS.Ty.not_not _)]
     -- set_option trace.Meta.whnf true in
-    simp only [CPS.Expr.ren, CPS.Expr.subst_ren, ← CPS.Sub.ren_comp_lift, CPS.Expr.subst,
-      CPS.Expr.ren_subst, ← CPS.Sub.comp_ren_lift, CPS.Sub.wk_of_lift_comp_ren_wk,
-      CPS.Expr.subst_subst, CPS.Sub.comp_lift, STLC.Expr.subst_toCPS, List.map_cons, Sub.snoc_toCPS,
+    simp only [CPS.Expr.ren, CPS.Expr.subst_ren, CPS.Expr.subst,
+      CPS.Expr.ren_subst, CPS.Sub.wk_of_lift_comp_ren_wk,
+      CPS.Expr.subst_subst, STLC.Expr.subst_toCPS, List.map_cons, Sub.snoc_toCPS,
       Sub.id_toCPS]
-    repeat conv in CPS.Expr.zero.subst _ => whnf
-    repeat rw [← CPS.Expr.zero]
     apply CPS.Equiv.trans
     apply CPS.Equiv.beta
-    generalize_proofs pf₁ pf₂
+    -- generalize_proofs pf₁ pf₂
     rw [CPS.Expr.cast_subst]
     all_goals try first | rfl | rw [CPS.Ty.not_not]
     simp only [cast_eq]
@@ -1674,6 +1661,39 @@ theorem Equiv.toCPS (e e' : Expr Γ t A) (h : Equiv e e') : CPS.Equiv e.toCPS e'
     all_goals try first | rfl | rw [CPS.Ty.not_not]
     rw [CPS.Expr.subst]
     rw [CPS.Expr.cast_subst, cast_eq]
+    all_goals try first | rfl | rw [CPS.Ty.not_not]
+    simp only [CPS.Expr.zero_subst_lift, CPS.Ty.not_not, CPS.Expr.cast_zero_subst_snoc]
+    rw [← CPS.Expr.cast_lam]
+    all_goals try first | rfl | rw [CPS.Ty.not_not]
+    rw [CPS.Expr.cast_and_intro]; all_goals try first | rfl | rw [CPS.Ty.not_not]
+    simp only [cast_eq, CPS.Expr.subst]
+    rw [CPS.Expr.cast_subst, cast_eq]
+    all_goals try first | rfl | rw [CPS.Ty.not_not]
+
+
+
+
+#exit
+(cast ⋯
+          (0.and_elim
+            ⟦e⟧[(CPS.Sub.id.wk.lift.lift ∘
+                    ↑ᵣ.lift ᵣ∘
+                      CPS.Sub.id.wk).lift.lift]))[(CPS.Sub.id.snoc
+            ((cast pf₁ (0 ⟦v⟧[CPS.Sub.id.wk.wk]).lam).and_intro 0)).lift]
+(cast ⋯
+        (cast ⋯
+            (0.and_elim
+              ⟦e⟧[(CPS.Sub.id.wk.lift.lift ∘
+                      ↑ᵣ.lift ᵣ∘
+                        CPS.Sub.id.wk).lift.lift]))[(CPS.Sub.id.snoc
+              ((cast pf₁ (0 ⟦v⟧[CPS.Sub.id.wk.wk]).lam).and_intro 0)).lift])
+    -- conv =>
+      -- enter [1,1]
+      -- rw [CPS.Expr.cast_zero_subst_snoc]
+
+    -- simp []
+
+    -- simp [CPS.Expr.cast_zero_subst_snoc]
     -- rw [show e.toCPS.subst (CPS.Sub.id.snoc v.toCPS).lift = (e.toCPS.subst (CPS.Sub.id.snoc v.toCPS).lift ]
     -- grw [CPS.Equiv.beta]
     sorry
