@@ -701,7 +701,7 @@ def Expr.not_of_not_not_not (A : Ty) (e : Expr Γ val A.not.not.not) : Expr Γ v
   exact Expr.not_not Expr.zero
 
 end CPS
-/-
+
 modular (name := `CPSFix)
   namespace CPSFix
 
@@ -850,14 +850,14 @@ modular (name := `CPSFix)
   @[simp]
   mod def Ren.lift_succ extends CPS.Ren.lift_succ
 
-  @[simp]
-  mod def Sub.lift_succ extends CPS.Sub.lift_succ
 
   -- TODO fix this issue...
   mod def Expr.ren.hcongr_6' extends CPS.Expr.ren.hcongr_6
   mod def Expr.ren_comp_subst_lift._proof_1_4 extends CPS.Expr.ren_comp_subst_lift._proof_1_4
   mod def Expr.ren_comp_subst_lift._proof_1_5 extends CPS.Expr.ren_comp_subst_lift._proof_1_5
   mod def Expr.ren_comp_subst_lift._proof_1_6 extends CPS.Expr.ren_comp_subst_lift._proof_1_6
+  mod def Expr.ren_comp_subst_lift._proof_1_7 extends CPS.Expr.ren_comp_subst_lift._proof_1_7
+  mod def Expr.ren_comp_subst_lift._proof_1_8 extends CPS.Expr.ren_comp_subst_lift._proof_1_8
   mod def Expr.ren_comp_subst_lift._proof_1_10 extends CPS.Expr.ren_comp_subst_lift._proof_1_10
   mod def Expr.ren_comp_subst_lift._proof_1_11 extends CPS.Expr.ren_comp_subst_lift._proof_1_11
   mod def Expr.ren_comp_subst_lift._proof_1_12 extends CPS.Expr.ren_comp_subst_lift._proof_1_12
@@ -883,6 +883,7 @@ modular (name := `CPSFix)
 
   mod def Expr.cast_val._proof_1 extends CPS.Expr.cast_val._proof_1
   mod def Expr.cast_val extends CPS.Expr.cast_val
+  mod def Expr.cast_val' extends CPS.Expr.cast_val'
 
   mod def Equiv.ren extends CPS.Equiv.ren where
     finally
@@ -894,14 +895,17 @@ modular (name := `CPSFix)
       have : (Expr.ren r (Expr.subst ((Sub.id.snoc e.fix).snoc v) e)) = (Expr.subst ((Sub.id.snoc (Expr.ren r.lift.lift e).fix).snoc (Expr.ren r v)) (Expr.ren r.lift.lift e)) := by
         simp [Expr.ren_subst, Expr.subst_ren]
         congr 1
-        funext ⟨x,_⟩
-        cases x
+        funext x
+        cases x using Fin.cases
         case zero => rfl
         case succ x h =>
           cases x
-          · rfl
+          · simp [Sub.ren_comp, Sub.comp_ren]
+            --rw [Ren.lift_succ]
+            sorry
           · symm
-            apply Expr.cast_val
+            --apply Expr.cast_val'
+            sorry
       rw [this]
       apply CPSFix.Equiv.fix_beta
 
@@ -914,14 +918,15 @@ modular (name := `CPSFix)
       have : (Expr.subst σ (Expr.subst ((Sub.id.snoc e.fix).snoc v) e)) = (Expr.subst ((Sub.id.snoc (Expr.subst σ.lift.lift e).fix).snoc (Expr.subst σ v)) (Expr.subst σ.lift.lift e)) := by
         simp [Expr.subst_subst]
         congr 1
-        funext ⟨x,_⟩
-        cases x
+        funext x
+        cases x using Fin.cases
         case zero => rfl
         case succ x h =>
           cases x
-          · rfl
           · simp [Sub.comp, Expr.lift, Expr.ren_subst]
-            rfl
+            sorry
+          · simp [Sub.comp, Expr.lift, Expr.ren_subst]
+            sorry
       rw [this]
       apply Equiv.fix_beta
 
@@ -1090,14 +1095,13 @@ modular (name := `CPSNat)
   @[simp]
   mod def Ren.lift_succ extends CPS.Ren.lift_succ
 
-  @[simp]
-  mod def Sub.lift_succ extends CPS.Sub.lift_succ
-
   -- TODO fix this issue...
   mod def Expr.ren.hcongr_6' extends CPS.Expr.ren.hcongr_6
   mod def Expr.ren_comp_subst_lift._proof_1_4 extends CPS.Expr.ren_comp_subst_lift._proof_1_4
   mod def Expr.ren_comp_subst_lift._proof_1_5 extends CPS.Expr.ren_comp_subst_lift._proof_1_5
   mod def Expr.ren_comp_subst_lift._proof_1_6 extends CPS.Expr.ren_comp_subst_lift._proof_1_6
+  mod def Expr.ren_comp_subst_lift._proof_1_7 extends CPS.Expr.ren_comp_subst_lift._proof_1_7
+  mod def Expr.ren_comp_subst_lift._proof_1_8 extends CPS.Expr.ren_comp_subst_lift._proof_1_8
   mod def Expr.ren_comp_subst_lift._proof_1_10 extends CPS.Expr.ren_comp_subst_lift._proof_1_10
   mod def Expr.ren_comp_subst_lift._proof_1_11 extends CPS.Expr.ren_comp_subst_lift._proof_1_11
   mod def Expr.ren_comp_subst_lift._proof_1_12 extends CPS.Expr.ren_comp_subst_lift._proof_1_12
@@ -1131,6 +1135,7 @@ modular (name := `CPSNat)
 
   mod def Expr.cast_val._proof_1 extends CPS.Expr.cast_val._proof_1
   mod def Expr.cast_val extends CPS.Expr.cast_val
+  mod def Expr.cast_val' extends CPS.Expr.cast_val'
 
   mod def Equiv.ren extends CPS.Equiv.ren where
     finally
@@ -1148,10 +1153,10 @@ modular (name := `CPSNat)
       have : Expr.subst (Sub.id.snoc (Expr.ren r v)) (Expr.ren r.lift e) = Expr.ren r (Expr.subst (Sub.id.snoc v) e) := by
         simp [Expr.ren_subst, Expr.subst_ren]
         congr 1
-        funext ⟨x,_⟩
-        cases x
+        funext x
+        cases x using Fin.cases
         case zero => rfl
-        case succ x h => apply Expr.cast_val
+        case succ x h => apply Expr.cast_val'
       rw [← this]
       apply CPSNat.Equiv.match_succ
 
@@ -1170,8 +1175,8 @@ modular (name := `CPSNat)
       have : Expr.subst (Sub.id.snoc (Expr.subst σ v)) (Expr.subst σ.lift e) = Expr.subst σ (Expr.subst (Sub.id.snoc v) e) := by
         simp [Expr.subst_subst]
         congr 1
-        funext ⟨x,_⟩
-        cases x
+        funext x
+        cases x using Fin.cases
         case zero => rfl
         case succ x h => simp [Sub.comp, Expr.lift, Expr.ren_subst]; rfl
       rw [← this]
@@ -1317,14 +1322,13 @@ modular (name := `CPSFixNat)
   @[simp]
   mod def Ren.lift_succ extends CPSFix.Ren.lift_succ, CPSNat.Ren.lift_succ
 
-  @[simp]
-  mod def Sub.lift_succ extends CPSFix.Sub.lift_succ, CPSNat.Sub.lift_succ
-
   -- TODO fix this issue...
   mod def Expr.ren.hcongr_6' extends CPSFix.Expr.ren.hcongr_6', CPSNat.Expr.ren.hcongr_6'
   mod def Expr.ren_comp_subst_lift._proof_1_4 extends CPSFix.Expr.ren_comp_subst_lift._proof_1_4, CPSNat.Expr.ren_comp_subst_lift._proof_1_4
   mod def Expr.ren_comp_subst_lift._proof_1_5 extends CPSFix.Expr.ren_comp_subst_lift._proof_1_5, CPSNat.Expr.ren_comp_subst_lift._proof_1_5
   mod def Expr.ren_comp_subst_lift._proof_1_6 extends CPSFix.Expr.ren_comp_subst_lift._proof_1_6, CPSNat.Expr.ren_comp_subst_lift._proof_1_6
+  mod def Expr.ren_comp_subst_lift._proof_1_7 extends CPSFix.Expr.ren_comp_subst_lift._proof_1_7, CPSNat.Expr.ren_comp_subst_lift._proof_1_7
+  mod def Expr.ren_comp_subst_lift._proof_1_8 extends CPSFix.Expr.ren_comp_subst_lift._proof_1_8, CPSNat.Expr.ren_comp_subst_lift._proof_1_8
   mod def Expr.ren_comp_subst_lift._proof_1_10 extends CPSFix.Expr.ren_comp_subst_lift._proof_1_10, CPSNat.Expr.ren_comp_subst_lift._proof_1_10
   mod def Expr.ren_comp_subst_lift._proof_1_11 extends CPSFix.Expr.ren_comp_subst_lift._proof_1_11, CPSNat.Expr.ren_comp_subst_lift._proof_1_11
   mod def Expr.ren_comp_subst_lift._proof_1_12 extends CPSFix.Expr.ren_comp_subst_lift._proof_1_12, CPSNat.Expr.ren_comp_subst_lift._proof_1_12
@@ -1342,6 +1346,7 @@ modular (name := `CPSFixNat)
 
   mod def Expr.cast_val._proof_1 extends CPSFix.Expr.cast_val._proof_1, CPSNat.Expr.cast_val._proof_1
   mod def Expr.cast_val extends CPSFix.Expr.cast_val, CPSNat.Expr.cast_val
+  mod def Expr.cast_val' extends CPSFix.Expr.cast_val', CPSNat.Expr.cast_val'
 
   mod def Equiv.ren extends CPSFix.Equiv.ren, CPSNat.Equiv.ren
   mod def Equiv.subst extends CPSFix.Equiv.subst, CPSNat.Equiv.subst
@@ -1350,7 +1355,7 @@ modular (name := `CPSFixNat)
   mod def Expr.cast_subst extends CPSFix.Expr.cast_subst, CPSNat.Expr.cast_subst
   mod def Expr.cast_lam   extends CPSFix.Expr.cast_lam, CPSNat.Expr.cast_lam
 end CPSFixNat
--/
+
 namespace STLC
 abbrev Tag.toCPS : Tag → CPS.Tag
   | dummy => .dummy
@@ -1629,47 +1634,21 @@ theorem Equiv.toCPS (e e' : Expr Γ t A) (h : Equiv e e') : CPS.Equiv e.toCPS e'
   case app ih₁ ih₂ =>
     apply CPS.Equiv.app
     · apply CPS.Equiv.subst
-      apply CPS.Equiv.cast _ (CPS.Ty.not_not _)
-      apply CPS.Equiv.lam
-      assumption
+      sorry
+      -- TODO auxiliary lemma showing that if `Equiv t₁ t₂`, then `Equiv t₁.not_of_not_not_not t₂.not_of_not_not_not`
+      -- apply CPS.Equiv.cast _ (CPS.Ty.not_not _)
+      -- apply CPS.Equiv.lam
+      -- assumption
     · apply CPS.Equiv.and_intro
-      · apply CPS.Equiv.subst
-        apply CPS.Equiv.cast _ (CPS.Ty.not_not _)
-        apply CPS.Equiv.lam
-        assumption
+      · sorry
+        -- TODO auxiliary lemma showing that if `Equiv t₁ t₂`, then `Equiv (cast p t₁) (cast p t₂)`
+        -- apply CPS.Equiv.subst
+        -- apply CPS.Equiv.cast _ (CPS.Ty.not_not _)
+        -- apply CPS.Equiv.lam
+        -- assumption
       · exact .refl
   case beta A Γ B e v =>
-    -- have v := v.toCPS
-    -- have e := e.lam.toCPS
-    -- dsimp [ToExprType, ToCtx, Tag.toCPS, Tag.ToData, Ty.toCPS] at e v
-    simp only [CPS.Expr.lift]
-    rw [CPS.Expr.cast_subst (CPS.Ty.not_not _), cast_eq, CPS.Expr.cast_subst (CPS.Ty.not_not _)]
-    simp only [CPS.Expr.subst, cast_eq]
-    rw [← CPS.Expr.cast_lam (h := CPS.Ty.not_not _)]
-    -- set_option trace.Meta.whnf true in
-    simp only [CPS.Expr.ren, CPS.Expr.subst_ren, CPS.Expr.subst,
-      CPS.Expr.ren_subst, CPS.Sub.wk_of_lift_comp_ren_wk,
-      CPS.Expr.subst_subst, STLC.Expr.subst_toCPS, List.map_cons, Sub.snoc_toCPS,
-      Sub.id_toCPS]
-    apply CPS.Equiv.trans
-    apply CPS.Equiv.beta
-    -- generalize_proofs pf₁ pf₂
-    rw [CPS.Expr.cast_subst]
-    all_goals try first | rfl | rw [CPS.Ty.not_not]
-    simp only [cast_eq]
-    rw [CPS.Expr.cast_app]
-    all_goals try first | rfl | rw [CPS.Ty.not_not]
-    rw [CPS.Expr.subst]
-    rw [CPS.Expr.cast_subst, cast_eq]
-    all_goals try first | rfl | rw [CPS.Ty.not_not]
-    simp only [CPS.Expr.zero_subst_lift, CPS.Ty.not_not, CPS.Expr.cast_zero_subst_snoc]
-    rw [← CPS.Expr.cast_lam]
-    all_goals try first | rfl | rw [CPS.Ty.not_not]
-    rw [CPS.Expr.cast_and_intro]; all_goals try first | rfl | rw [CPS.Ty.not_not]
-    simp only [cast_eq, CPS.Expr.subst]
-    rw [CPS.Expr.cast_subst, cast_eq]
-    all_goals try first | rfl | rw [CPS.Ty.not_not]
-
+    sorry
 
 
 
