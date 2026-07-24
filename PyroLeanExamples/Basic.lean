@@ -702,6 +702,17 @@ def Expr.not_of_not_not_not (A : Ty) (e : Expr Γ val A.not.not.not) : Expr Γ v
   apply Expr.app (e.lift)
   exact Expr.not_not Expr.zero
 
+@[simp]
+theorem Sub.and_succ_succ (σ : Sub Γ Δ) : (Sub.and σ n.succ.succ) = (σ n).lift (B := Ty.times A B) := rfl
+
+theorem Expr.subst_and_lift_lift (σ : Sub Γ Δ) : Expr.subst (Sub.and σ) ((t.lift (B := A)).lift (B := B)) = (Expr.subst σ t).lift := by
+  induction t <;> simp [Expr.lift, Expr.ren, Expr.subst, *] at *
+  case var h => cases h; rfl
+  case lam ih =>
+    rw [Expr.subst_ren, ← Expr.subst_comp_ren_lift, Expr.ren_subst, ← Expr.ren_comp_subst_lift, Expr.ren_subst, ← Expr.ren_comp_subst_lift]
+    rfl
+  case app ih₁ ih₂ | and_intro ih₁ ih₂ => exact ⟨ih₁ _, ih₂ _⟩
+
 end CPS
 
 modular (name := `CPSFix)
@@ -780,6 +791,10 @@ modular (name := `CPSFix)
 
   mod def Equiv.equiv extends CPS.Equiv.equiv
   mod def Equiv.setoid extends CPS.Equiv.setoid
+
+  mod def Sub.and._proof_1 extends CPS.Sub.and._proof_1
+  mod def Sub.and._proof_2 extends CPS.Sub.and._proof_2
+  mod def Sub.and extends CPS.Sub.and
 
   mod def Ren.comp._proof_1 extends CPS.Ren.comp._proof_1
   mod def Ren.comp extends CPS.Ren.comp
@@ -933,6 +948,20 @@ modular (name := `CPSFix)
   mod def Expr.cast_subst extends CPS.Expr.cast_subst
   mod def Expr.cast_lam extends CPS.Expr.cast_lam
 
+  mod def Expr.not_not extends CPS.Expr.not_not
+
+  mod def Expr.not_of_not_not_not extends CPS.Expr.not_of_not_not_not
+
+  @[simp]
+  mod def Sub.and_succ_succ extends CPS.Sub.and_succ_succ
+
+  mod def Expr.subst_and_lift_lift extends CPS.Expr.subst_and_lift_lift where
+    finally
+      all_goals
+        intros
+        simp [Expr.lift, Expr.ren, Expr.subst, Expr.ren_subst, Expr.subst_ren, *] at *
+
+
 end CPSFix
 
 modular (name := `CPSNat)
@@ -1020,6 +1049,10 @@ modular (name := `CPSNat)
 
   mod def Equiv.equiv extends CPS.Equiv.equiv
   mod def Equiv.setoid extends CPS.Equiv.setoid
+
+  mod def Sub.and._proof_1 extends CPS.Sub.and._proof_1
+  mod def Sub.and._proof_2 extends CPS.Sub.and._proof_2
+  mod def Sub.and extends CPS.Sub.and
 
   mod def Ren.comp._proof_1 extends CPS.Ren.comp._proof_1
   mod def Ren.comp extends CPS.Ren.comp
@@ -1184,6 +1217,19 @@ modular (name := `CPSNat)
   mod def Expr.cast_subst extends CPS.Expr.cast_subst
   mod def Expr.cast_lam extends CPS.Expr.cast_lam
 
+  mod def Expr.not_not extends CPS.Expr.not_not
+
+  mod def Expr.not_of_not_not_not extends CPS.Expr.not_of_not_not_not
+
+  @[simp]
+  mod def Sub.and_succ_succ extends CPS.Sub.and_succ_succ
+
+  mod def Expr.subst_and_lift_lift extends CPS.Expr.subst_and_lift_lift where
+    finally
+      all_goals
+        intros
+        simp [Expr.lift, Expr.ren, Expr.subst, Expr.ren_subst, Expr.subst_ren, *] at *
+
 end CPSNat
 
 modular (name := `CPSFixNat)
@@ -1256,6 +1302,10 @@ modular (name := `CPSFixNat)
 
   mod def Equiv.equiv  extends CPSFix.Equiv.equiv, CPSNat.Equiv.equiv
   mod def Equiv.setoid extends CPSFix.Equiv.setoid, CPSNat.Equiv.setoid
+
+  mod def Sub.and._proof_1 extends CPS.Sub.and._proof_1
+  mod def Sub.and._proof_2 extends CPS.Sub.and._proof_2
+  mod def Sub.and extends CPS.Sub.and
 
   mod def Ren.comp._proof_1 extends CPSFix.Ren.comp._proof_1, CPSNat.Ren.comp._proof_1
   mod def Ren.comp extends CPSFix.Ren.comp, CPSNat.Ren.comp
@@ -1352,6 +1402,16 @@ modular (name := `CPSFixNat)
   mod def Equiv.cast extends CPSFix.Equiv.cast, CPSNat.Equiv.cast
   mod def Expr.cast_subst extends CPSFix.Expr.cast_subst, CPSNat.Expr.cast_subst
   mod def Expr.cast_lam   extends CPSFix.Expr.cast_lam, CPSNat.Expr.cast_lam
+
+  mod def Expr.not_not extends CPS.Expr.not_not
+
+  mod def Expr.not_of_not_not_not extends CPS.Expr.not_of_not_not_not
+
+  @[simp]
+  mod def Sub.and_succ_succ extends CPS.Sub.and_succ_succ
+
+  mod def Expr.subst_and_lift_lift extends CPS.Expr.subst_and_lift_lift
+
 end CPSFixNat
 
 namespace STLC
@@ -1420,8 +1480,6 @@ def Sub.toCPS (σ : Sub Γ Δ) : CPS.Sub Γ.toCPS Δ.toCPS := fun n => by
   have := (σ (Fin.cast (Ctx.toCPS_length _) n)).toCPS
   simp only [Fin.getElem_fin, Fin.val_cast, ToExprType, ToCtx, Ctx.getElem_toCPS] at this
   exact this
-
-theorem CPS.Expr.subst_and_lift_lift (σ : CPS.Sub Γ Δ) : CPS.Expr.subst (CPS.Sub.and σ) ((t.lift (B := A)).lift (B := B)) = (CPS.Expr.subst σ t).lift := sorry
 
 @[simp]
 theorem Sub.lift_toCPS (σ : Sub Γ Δ) : (σ.lift (A := A)).toCPS = σ.toCPS.lift := by
@@ -1516,15 +1574,23 @@ theorem Expr.subst_toCPS (e : Expr Δ t A) (σ : Sub Γ Δ) : (e.subst σ).toCPS
       cases n using Fin.cases
       · rfl
       · rw [CPS.Sub.comp, CPS.Sub.comp]
-        simp [CPS.Sub.lift_succ, CPS.Expr.subst_and_lift_lift]
-
-        apply CPS.Expr.cast_val'
+        simp [CPS.Sub.lift_succ, CPS.Expr.subst_and_lift_lift, CPS.Expr.lift_subst_lift, CPS.Sub.id, CPS.Expr.subst]
   case app ih₁ ih₂ =>
-    simp [CPS.Expr.subst, CPS.Expr.ren, CPS.Expr.subst_ren, CPS.Expr.lift, CPS.Expr.ren_subst, CPS.Expr.not_of_not_not_not, ← CPS.Sub.comp_ren_lift, ← CPS.Sub.ren_comp_lift]
+    simp [CPS.Expr.subst, CPS.Expr.ren, CPS.Expr.subst_ren, CPS.Expr.lift, CPS.Expr.ren_subst, CPS.Expr.not_of_not_not_not, ← CPS.Sub.comp_ren_lift, ← CPS.Sub.ren_comp_lift, CPS.Expr.subst_subst, CPS.Sub.wk_of_lift_comp_ren_wk]
     and_intros
-    · sorry
+    · congr 2
+      funext x
+      simp [CPS.Sub.comp, CPS.Sub.ren_comp]
+      sorry
     · rfl
-    · sorry
+    · rw [CPS.Expr.cast_ren]
+      all_goals try first | rfl | rw [CPS.Ty.not_not]
+      simp only [cast_eq]
+      rw [CPS.Expr.cast_subst]
+      all_goals try first | rfl | rw [CPS.Ty.not_not]
+      simp only [cast_eq]
+      rw [← CPS.Expr.subst, CPS.Expr.subst_ren]
+      rfl
     · rfl
 section Delab
 
@@ -1681,35 +1747,6 @@ theorem Equiv.toCPS (e e' : Expr Γ t A) (h : Equiv e e') : CPS.Equiv e.toCPS e'
   case beta A Γ B e v =>
     sorry
 
-
-
-#exit
-(cast ⋯
-          (0.and_elim
-            ⟦e⟧[(CPS.Sub.id.wk.lift.lift ∘
-                    ↑ᵣ.lift ᵣ∘
-                      CPS.Sub.id.wk).lift.lift]))[(CPS.Sub.id.snoc
-            ((cast pf₁ (0 ⟦v⟧[CPS.Sub.id.wk.wk]).lam).and_intro 0)).lift]
-(cast ⋯
-        (cast ⋯
-            (0.and_elim
-              ⟦e⟧[(CPS.Sub.id.wk.lift.lift ∘
-                      ↑ᵣ.lift ᵣ∘
-                        CPS.Sub.id.wk).lift.lift]))[(CPS.Sub.id.snoc
-              ((cast pf₁ (0 ⟦v⟧[CPS.Sub.id.wk.wk]).lam).and_intro 0)).lift])
-    -- conv =>
-      -- enter [1,1]
-      -- rw [CPS.Expr.cast_zero_subst_snoc]
-
-    -- simp []
-
-    -- simp [CPS.Expr.cast_zero_subst_snoc]
-    -- rw [show e.toCPS.subst (CPS.Sub.id.snoc v.toCPS).lift = (e.toCPS.subst (CPS.Sub.id.snoc v.toCPS).lift ]
-    -- grw [CPS.Equiv.beta]
-    sorry
-
-end STLC
-#exit
 modular (name := `STLCFix.toCPS) (imports := #[`STLCFix, `CPSFix])
   namespace STLCFix
 
@@ -1737,8 +1774,8 @@ modular (name := `STLCFix.toCPS) (imports := #[`STLCFix, `CPSFix])
   mod def Expr.toCPS._proof_3 extends STLC.Expr.toCPS._proof_3
   mod def Expr.toCPS extends STLC.Expr.toCPS where
     matcher match_1 with
-      | _, _, .fix e => .fix (.and_elim .zero (Expr.toCPS e |>.subst CPSFix.Sub.id.wk.lift.lift))
-
+      | _, _, .fix e => .fix sorry
+#exit
   @[simp]
   mod def Ctx.getElem_toCPS extends STLC.Ctx.getElem_toCPS
 
@@ -1759,6 +1796,7 @@ modular (name := `STLCFix.toCPS) (imports := #[`STLCFix, `CPSFix])
         exact CPSFix.Equiv.and_elim CPSFix.Equiv.refl (CPSFix.Equiv.subst ‹_›)
       · intros
         simp [Expr.toCPS]
+        -- same challenges as the beta proof
         sorry
 
 end STLCFix
@@ -1877,66 +1915,3 @@ modular (name := `STLCFixBool.toCPS) (imports := #[`STLCFixBool, `CPSFixNat])
   mod def Equiv.toCPS extends STLC.Equiv.toCPS
 
 end STLCFixBool
-
-
-#exit
-section Delab
-
-open Lean PrettyPrinter Delaborator SubExpr
-
-@[app_delab STLC.Tag.toCPS]
-def delabTagToCPS : Delab := do
-  let e ← getExpr
-  guard $ e.isAppOfArity' ``STLC.Tag.toCPS 1
-  let arg ← withAppArg delab
-  `(⟦ $arg ⟧)
-
-@[app_delab STLC.Ty.toCPS]
-def delabTyToCPS : Delab := do
-  let e ← getExpr
-  guard $ e.isAppOfArity' ``STLC.Ty.toCPS 1
-  let arg ← withAppArg delab
-  `(⟦ $arg ⟧)
-
-@[app_delab STLC.Ctx.toCPS]
-def delabCtxToCPS : Delab := do
-  let e ← getExpr
-  guard $ e.isAppOfArity' ``STLC.Ctx.toCPS 1
-  let arg ← withAppArg delab
-  `(⟦ $arg ⟧)
-
-@[app_delab STLC.Expr.toCPS]
-def delabExprToCPS : Delab := do
-  let e ← getExpr
-  guard $ e.isAppOfArity' ``STLC.Expr.toCPS 4
-  let arg ← withAppArg delab
-  `(⟦ $arg ⟧)
-
-@[app_delab CPS.Expr.app]
-def delabCPSApp : Delab := do
-  let e ← getExpr
-  guard $ e.isAppOfArity' ``CPS.Expr.app 4
-  let v ← withAppArg delab
-  let e ← withAppFn <| withAppArg delab
-  `($e $v)
-
-@[app_delab STLC.Expr.subst]
-def delabSTLCsubst : Delab := do
-  let e ← getExpr
-  guard $ e.isAppOfArity' ``STLC.Expr.subst 6
-  let e ← withAppArg delab
-  let σ ← withAppFn <| withAppArg delab
-  `($e[$σ])
-
-@[app_delab CPS.Expr.subst]
-def delabCPSsubst : Delab := do
-  let e ← getExpr
-  guard $ e.isAppOfArity' ``CPS.Expr.subst 6
-  let e ← withAppArg delab
-  let σ ← withAppFn <| withAppArg delab
-  `($e[$σ])
-
-@[app_delab CPS.Expr.zero, app_delab STLC.Expr.zero]
-def delabExprZero : Delab := `(0)
-
-end Delab
