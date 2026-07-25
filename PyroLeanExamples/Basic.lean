@@ -1568,7 +1568,10 @@ theorem Expr.lift_toCPS (e : Expr Γ t A) : (e.lift (B := B)).toCPS = (by cases 
   · rfl
   · constructor
     · rfl
-    · sorry
+    · rename_i Γ e a
+      rw [← CPS.Expr.subst_id (t := CPS.Expr.ren (CPS.Ren.wk.comp Ren.wk.toCPS) e.toCPS)]
+      rw [CPS.Expr.ren_subst]
+      rfl
   · congr 1
     funext n
     cases n using Fin.cases
@@ -1579,7 +1582,15 @@ theorem Expr.lift_toCPS (e : Expr Γ t A) : (e.lift (B := B)).toCPS = (by cases 
     · rfl
     · rfl
     · rfl
-    · sorry
+    · rw [CPS.Expr.cast_ren, CPS.Expr.cast_subst]
+      all_goals try first | rfl | rw [CPS.Ty.not_not]
+      simp
+      rename_i e _ _
+      rw [← CPS.Expr.subst_id (t := CPS.Expr.ren CPS.Ren.wk (CPS.Expr.ren Ren.wk.toCPS.lift e.toCPS).lam)]
+      rw [CPS.Expr.ren, CPS.Expr.subst, CPS.Expr.subst, CPS.Expr.ren_of_ren_ren, CPS.Expr.ren_subst]
+      congr
+      funext n
+      cases n using Fin.cases <;> rfl
     · rfl
 
 set_option backward.isDefEq.respectTransparency false
