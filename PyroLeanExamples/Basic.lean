@@ -134,7 +134,7 @@ modular (name := `STLC)
 
   mod def Expr.lift extends Base.Expr.lift
 
-  @[reducible]
+  @[implicit_reducible]
   mod def Sub extends Base.Sub
   mod def Sub.id extends Base.Sub.id
   mod def Sub.wk extends Base.Sub.wk
@@ -398,9 +398,9 @@ modular (name := `CPS)
     | _, _, .snd p => .snd (Expr.ren r p)
 
   mod def Expr.lift extends Base.Expr.lift
-
+  @[implicit_reducible]
   mod def Sub extends Base.Sub
-  attribute [implicit_reducible] Sub
+
   mod def Sub.id extends Base.Sub.id
   mod def Sub.wk extends Base.Sub.wk
   mod def Sub.snoc extends Base.Sub.snoc
@@ -565,6 +565,10 @@ theorem Expr.ren_subst (t : Expr Φ t A) (σ : Sub Γ Δ) (ρ : Ren  Δ Φ) : (t
     have := ih σ.lift ρ.lift
     rw [← this, Sub.comp_ren_lift]
     assumption
+
+theorem Sub.comp_ren_comp {σ : Sub Γ Δ} {r : Ren Δ Φ} {τ : Sub Φ Ξ} : σ.comp (τ.ren_comp r) = (σ.comp_ren r).comp τ := by
+  funext x
+  simp [Sub.comp, Sub.ren_comp, Expr.ren_subst]
 
 theorem Expr.lift_subst_lift (t : Expr Δ t B) (σ : Sub Γ Δ) :
 (t.lift (A := B)).subst σ.lift = (t.subst σ).lift (B := A) := by
@@ -782,8 +786,8 @@ modular (name := `CPSFix)
 
   mod def Expr.lift extends CPS.Expr.lift
 
+  @[implicit_reducible]
   mod def Sub extends CPS.Sub
-  attribute [implicit_reducible] Sub
   mod def Sub.id extends CPS.Sub.id
   mod def Sub.wk extends CPS.Sub.wk
   mod def Sub.snoc extends CPS.Sub.snoc
@@ -1625,6 +1629,10 @@ theorem Sub.toCPS_apply (σ : Sub Γ Δ) : (σ.toCPS n) = (Ctx.getElem_toCPS ..)
   simp only [Fin.getElem_fin, Fin.val_cast, eq_mp_eq_cast]
   grind -abstractProof --TODO get rid of
 
+theorem _root_.CPS.Sub.wk_of_lift_comp_wk {σ : CPS.Sub Γ Δ} : (CPS.Sub.comp σ.lift (CPS.Sub.wk τ)) = (CPS.Sub.comp σ τ).wk (A := A):= by
+  funext x
+  rw [CPS.Sub.comp, CPS.Sub.wk, CPS.Expr.lift_subst_lift]
+  rfl
 
 set_option allowUnsafeReducibility true in
 attribute [local reducible] List.map in
@@ -1654,8 +1662,9 @@ theorem Expr.subst_toCPS (e : Expr Δ t A) (σ : Sub Γ Δ) : (e.subst σ).toCPS
     and_intros
     · congr 2
       funext x
-      simp [CPS.Sub.comp, CPS.Sub.ren_comp]
-      sorry
+      rw [CPS.Sub.comp_ren_comp, CPS.Sub.wk_of_lift_comp_ren_wk]
+      rw [CPS.Sub.wk_of_lift_comp_wk, CPS.Sub.wk_of_lift_comp_wk, CPS.Sub.idR, CPS.Sub.comp, CPS.Sub.wk, CPS.Sub.wk, CPS.Expr.lift, CPS.Expr.lift, CPS.Expr.ren_of_ren_ren , ← CPS.Expr.subst_id (t := CPS.Expr.ren (CPS.Ren.wk.comp CPS.Ren.wk) (σ.toCPS x)), CPS.Expr.ren_subst]
+      rfl
     · rfl
     · rw [CPS.Expr.cast_ren]
       all_goals try first | rfl | rw [CPS.Ty.not_not]
