@@ -714,6 +714,13 @@ def Expr.not_of_not_not_not (A : Ty) (e : Expr Γ val A.not.not.not) : Expr Γ v
   apply Expr.app (e.lift)
   exact Expr.not_not Expr.zero
 
+theorem Equiv.not_of_not_not_not (h : Equiv e₁ e₂) : Equiv (e₁.not_of_not_not_not _) (e₂.not_of_not_not_not) := by
+  unfold Expr.not_of_not_not_not
+  apply Equiv.lam
+  refine Equiv.app ?_ Equiv.refl
+  apply Equiv.ren
+  assumption
+
 @[simp]
 theorem Sub.and_succ_succ (σ : Sub Γ Δ) : (Sub.and σ n.succ.succ) = (σ n).lift (B := Ty.times A B) := rfl
 
@@ -973,6 +980,7 @@ modular (name := `CPSFix)
   mod def Expr.not_not extends CPS.Expr.not_not
 
   mod def Expr.not_of_not_not_not extends CPS.Expr.not_of_not_not_not
+  mod def Equiv.not_of_not_not_not extends CPS.Equiv.not_of_not_not_not
 
   @[simp]
   mod def Sub.and_succ_succ extends CPS.Sub.and_succ_succ
@@ -1253,6 +1261,7 @@ modular (name := `CPSNat)
   mod def Expr.not_not extends CPS.Expr.not_not
 
   mod def Expr.not_of_not_not_not extends CPS.Expr.not_of_not_not_not
+  mod def Equiv.not_of_not_not_not extends CPS.Equiv.not_of_not_not_not
 
   @[simp]
   mod def Sub.and_succ_succ extends CPS.Sub.and_succ_succ
@@ -1327,8 +1336,9 @@ modular (name := `CPSFixNat)
 
   mod def Expr.lift extends CPSFix.Expr.lift, CPSNat.Expr.lift
 
+  @[implicit_reducible]
   mod def Sub extends CPSFix.Sub, CPSNat.Sub
-  attribute [implicit_reducible] Sub
+
   mod def Sub.id   extends CPSFix.Sub.id, CPSNat.Sub.id
   mod def Sub.wk   extends CPSFix.Sub.wk, CPSNat.Sub.wk
   mod def Sub.snoc extends CPSFix.Sub.snoc, CPSNat.Sub.snoc
@@ -1341,9 +1351,9 @@ modular (name := `CPSFixNat)
   mod def Equiv.equiv  extends CPSFix.Equiv.equiv, CPSNat.Equiv.equiv
   mod def Equiv.setoid extends CPSFix.Equiv.setoid, CPSNat.Equiv.setoid
 
-  mod def Sub.and._proof_1 extends CPS.Sub.and._proof_1
-  mod def Sub.and._proof_2 extends CPS.Sub.and._proof_2
-  mod def Sub.and extends CPS.Sub.and
+  mod def Sub.and._proof_1 extends CPSFix.Sub.and._proof_1, CPSNat.Sub.and._proof_1
+  mod def Sub.and._proof_2 extends CPSFix.Sub.and._proof_2, CPSNat.Sub.and._proof_2
+  mod def Sub.and extends CPSFix.Sub.and, CPSNat.Sub.and
 
   mod def Ren.comp._proof_1 extends CPSFix.Ren.comp._proof_1, CPSNat.Ren.comp._proof_1
   mod def Ren.comp extends CPSFix.Ren.comp, CPSNat.Ren.comp
@@ -1432,6 +1442,15 @@ modular (name := `CPSFixNat)
 
   mod def Expr.subst_subst extends CPSFix.Expr.subst_subst , CPSNat.Expr.subst_subst
 
+  mod def Expr.subst.hcongr_6' extends CPSFix.Expr.subst.hcongr_6', CPSNat.Expr.subst.hcongr_6'
+  mod def Sub.comp_comp_ren extends CPSFix.Sub.comp_comp_ren, CPSNat.Sub.comp_comp_ren
+
+  mod def Sub.comp_ren_comp_ren._proof_1_3 extends CPSFix.Sub.comp_ren_comp_ren._proof_1_3, CPSNat.Sub.comp_ren_comp_ren._proof_1_3
+  mod def Sub.comp_ren_comp_ren._proof_1_5 extends CPSFix.Sub.comp_ren_comp_ren._proof_1_5, CPSNat.Sub.comp_ren_comp_ren._proof_1_5
+  mod def Sub.comp_ren_comp_ren._proof_1_6 extends CPSFix.Sub.comp_ren_comp_ren._proof_1_6, CPSNat.Sub.comp_ren_comp_ren._proof_1_6
+  mod def Sub.comp_ren_comp_ren extends CPSFix.Sub.comp_ren_comp_ren, CPSNat.Sub.comp_ren_comp_ren
+  mod def Sub.comp_comp extends CPSFix.Sub.comp_comp, CPSNat.Sub.comp_comp
+
   mod def Expr.cast_val._proof_1 extends CPSFix.Expr.cast_val._proof_1, CPSNat.Expr.cast_val._proof_1
   mod def Expr.cast_val extends CPSFix.Expr.cast_val, CPSNat.Expr.cast_val
   mod def Expr.cast_val' extends CPSFix.Expr.cast_val', CPSNat.Expr.cast_val'
@@ -1443,14 +1462,15 @@ modular (name := `CPSFixNat)
   mod def Expr.cast_subst extends CPSFix.Expr.cast_subst, CPSNat.Expr.cast_subst
   mod def Expr.cast_lam   extends CPSFix.Expr.cast_lam, CPSNat.Expr.cast_lam
 
-  mod def Expr.not_not extends CPS.Expr.not_not
+  mod def Expr.not_not extends CPSFix.Expr.not_not, CPSNat.Expr.not_not
 
-  mod def Expr.not_of_not_not_not extends CPS.Expr.not_of_not_not_not
+  mod def Expr.not_of_not_not_not extends CPSFix.Expr.not_of_not_not_not, CPSNat.Expr.not_of_not_not_not
+  mod def Equiv.not_of_not_not_not extends CPSFix.Equiv.not_of_not_not_not, CPSNat.Equiv.not_of_not_not_not
 
   @[simp]
-  mod def Sub.and_succ_succ extends CPS.Sub.and_succ_succ
+  mod def Sub.and_succ_succ extends CPSFix.Sub.and_succ_succ, CPSNat.Sub.and_succ_succ
 
-  mod def Expr.subst_and_lift_lift extends CPS.Expr.subst_and_lift_lift
+  mod def Expr.subst_and_lift_lift extends CPSFix.Expr.subst_and_lift_lift, CPSNat.Expr.subst_and_lift_lift
 
 end CPSFixNat
 
@@ -1814,18 +1834,14 @@ theorem STLC.Equiv.toCPS (e e' : Expr Γ t A) (h : Equiv e e') : CPS.Equiv e.toC
   case app ih₁ ih₂ =>
     apply CPS.Equiv.app
     · apply CPS.Equiv.subst
-      sorry
-      -- TODO auxiliary lemma showing that if `Equiv t₁ t₂`, then `Equiv t₁.not_of_not_not_not t₂.not_of_not_not_not`
-      -- apply CPS.Equiv.cast _ (CPS.Ty.not_not _)
-      -- apply CPS.Equiv.lam
-      -- assumption
+      apply CPS.Equiv.not_of_not_not_not
+      apply CPS.Equiv.lam
+      assumption
     · apply CPS.Equiv.and_intro
-      · sorry
-        -- TODO auxiliary lemma showing that if `Equiv t₁ t₂`, then `Equiv (cast p t₁) (cast p t₂)`
-        -- apply CPS.Equiv.subst
-        -- apply CPS.Equiv.cast _ (CPS.Ty.not_not _)
-        -- apply CPS.Equiv.lam
-        -- assumption
+      · apply CPS.Equiv.ren
+        apply CPS.Equiv.cast _ (CPS.Ty.not_not _)
+        apply CPS.Equiv.lam
+        assumption
       · exact .refl
   case beta A Γ B e v =>
     sorry
