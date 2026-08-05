@@ -19,7 +19,7 @@ rev = "master"
 name = "LeanALaCarte"
 scope = "arthur-adjedj"
 git = "https://github.com/arthur-adjedj/LeanALaCarte"
-rev = "main"
+rev = "d2d90d8d08e2056a277f5ac69b3ed3f4c6cd8680"
 
 [[require]]
 name = "mathlib"

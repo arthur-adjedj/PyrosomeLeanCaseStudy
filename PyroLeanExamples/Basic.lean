@@ -87,14 +87,14 @@ instance Equiv.setoid: Setoid (Expr t Γ A) where
 
 end Base
 
-modular (name := `STLC)
-  namespace STLC
+modular STLC
 
-  inductive Tag extends Base.Tag where
+namespace STLC
+  mod inductive Tag extends Base.Tag where
     | exp
   open Tag
 
-  inductive Ty extends Base.Ty where
+  mod inductive Ty extends Base.Ty where
     | arr (A B : Ty)
 
   @[reducible]
@@ -107,7 +107,7 @@ modular (name := `STLC)
 
   mod def Expr._proof_1 extends Base.Expr._proof_1
 
-  inductive Expr extends Base.Expr where
+  mod inductive Expr extends Base.Expr where
     | ret : Expr Γ val A → Expr Γ exp A
     | lam : Expr (A::Γ) exp B → Expr Γ val (.arr A B)
     | app : Expr Γ exp  (.arr A B) → Expr Γ exp  A → Expr Γ exp B
@@ -150,7 +150,7 @@ modular (name := `STLC)
       | _, _, .lam f => .lam (Expr.subst σ.lift f)
       | _, _, .app f t => .app (Expr.subst σ f) (Expr.subst σ t)
 
-  inductive Equiv extends Base.Equiv where
+  mod inductive Equiv extends Base.Equiv where
     | ret : Equiv v₁ v₂ → Equiv (.ret v₁) (.ret v₂)
     | lam : Equiv f₁ f₂ → Equiv (.lam f₁) (.lam f₂)
     | app : Equiv f₁ f₂ → Equiv t₁ t₂ → Equiv (.app f₁ t₁) (.app f₂ t₂)
@@ -159,11 +159,12 @@ modular (name := `STLC)
   mod def Equiv.equiv extends Base.Equiv.equiv
   mod def Equiv.setoid extends Base.Equiv.setoid
 end STLC
+modular end STLC
 
-modular (name := `STLCFix)
+modular STLCFix
   namespace STLCFix
   open STLC.Tag
-  inductive Ty extends STLC.Ty where
+  mod inductive Ty extends STLC.Ty where
 
   mod def Tag.Data extends STLC.Tag.Data where
 
@@ -172,7 +173,7 @@ modular (name := `STLCFix)
 
   mod def Expr._proof_1 extends STLC.Expr._proof_1
 
-  inductive Expr extends STLC.Expr where
+  mod inductive Expr extends STLC.Expr where
     | fix : Expr (A::(.arr A B)::Γ) exp B → Expr Γ val (.arr A B)
 
   mod def Expr.zero._proof_1 extends STLC.Expr.zero._proof_1
@@ -203,15 +204,16 @@ modular (name := `STLCFix)
     matcher match_4 with
       | _, _, .fix e => .fix (Expr.subst σ.lift.lift e)
 
-  inductive Equiv extends STLC.Equiv where
+  mod inductive Equiv extends STLC.Equiv where
     | fix : Equiv e e' → Equiv (.fix e) (.fix e')
     | fix_red : Equiv (.app (.ret (.fix e)) (.ret v)) (e.subst (Sub.id |>.snoc (.fix e) |>.snoc v))
 end STLCFix
+modular end STLCFix
 
-modular (name := `STLCBool)
+modular STLCBool
   namespace STLCBool
   open STLC.Tag
-  inductive Ty extends STLC.Ty where
+  mod inductive Ty extends STLC.Ty where
     | bool
 
   mod def Tag.Data extends STLC.Tag.Data where
@@ -221,7 +223,7 @@ modular (name := `STLCBool)
 
   mod def Expr._proof_1 extends STLC.Expr._proof_1
 
-  inductive Expr extends STLC.Expr where
+  mod inductive Expr extends STLC.Expr where
     | true : Expr Γ val .bool
     | false : Expr Γ val .bool
     | ite : Expr Γ val .bool → Expr Γ exp A → Expr Γ exp A → Expr Γ exp A
@@ -258,18 +260,19 @@ modular (name := `STLCBool)
       | _, _, .false => .false
       | _, _, .ite b e₁ e₂ => .ite (Expr.subst σ b) (Expr.subst σ e₁) (Expr.subst σ e₂)
 
-  inductive Equiv extends STLC.Equiv where
+  mod inductive Equiv extends STLC.Equiv where
     | ite_true : Equiv (.ite .true e₁ e₂) e₁
     | ite_false : Equiv (.ite .false e₁ e₂) e₂
     | ite : Equiv b b' → Equiv e₁ e₁' → Equiv e₂ e₂' → Equiv (.ite b e₁ e₂) (.ite b' e₁' e₂')
 
 end STLCBool
+modular end STLCBool
 
-modular (name := `STLCFixBool)
+modular STLCFixBool
   namespace STLCFixBool
   open STLC.Tag
 
-  inductive Ty extends STLCFix.Ty, STLCBool.Ty where
+  mod inductive Ty extends STLCFix.Ty, STLCBool.Ty where
     | bool
 
   mod def Tag.Data extends STLCFix.Tag.Data, STLCBool.Tag.Data where
@@ -279,7 +282,7 @@ modular (name := `STLCFixBool)
 
   mod def Expr._proof_1 extends STLCFix.Expr._proof_1, STLCBool.Expr._proof_1
 
-  inductive Expr extends STLCFix.Expr, STLCBool.Expr where
+  mod inductive Expr extends STLCFix.Expr, STLCBool.Expr where
     | true : Expr Γ val .bool
     | false : Expr Γ val .bool
     | ite : Expr Γ val .bool → Expr Γ exp A → Expr Γ exp A → Expr Γ exp A
@@ -309,15 +312,15 @@ modular (name := `STLCFixBool)
 
   mod def Expr.subst extends STLCFix.Expr.subst, STLCBool.Expr.subst
 
-  inductive Equiv extends STLCFix.Equiv, STLCBool.Equiv
+  mod inductive Equiv extends STLCFix.Equiv, STLCBool.Equiv
 
 end STLCFixBool
+modular end STLCFixBool
 
-
-modular (name := `CPS)
+modular CPS
   namespace CPS
 
-  inductive Tag extends Base.Tag where
+  mod inductive Tag extends Base.Tag where
     | exp
   open Tag
 
@@ -368,7 +371,7 @@ modular (name := `CPS)
 
   mod def Expr._proof_1 extends Base.Expr._proof_1
 
-  inductive Expr extends Base.Expr where
+  mod inductive Expr extends Base.Expr where
     | lam : Expr (A::Γ) exp () → Expr Γ val A.not
     | app : Expr Γ val A.not → Expr Γ val A → Expr Γ exp ()
     | and_intro : Expr Γ val A → Expr Γ val B → Expr Γ val (A.times B)
@@ -414,7 +417,7 @@ modular (name := `CPS)
       | _, _, .fst p => .fst (Expr.subst σ p)
       | _, _, .snd p => .snd (Expr.subst σ p)
 
-  inductive Equiv extends Base.Equiv where
+  mod inductive Equiv extends Base.Equiv where
     | lam : Equiv f₁ f₂ → Equiv (.lam f₁) (.lam f₂)
     | app : Equiv f₁ f₂ → Equiv t₁ t₂ → Equiv (.app f₁ t₁) (.app f₂ t₂)
     | beta (e : Expr (A::Γ) .exp ()) (v : Expr Γ .val A): Equiv (.app (.lam e) v) (e.subst (Sub.id.snoc v))
@@ -666,6 +669,7 @@ theorem Equiv.subst {σ : Sub Γ Δ} {e₁ e₂ : Expr Δ t A}  : Equiv e₁ e�
         · simp [Sub.comp, Sub.id, Expr.subst, Expr.lift, Expr.ren_subst]
       rw [this]
       apply Equiv.refl
+modular end _root_.CPS
 
 theorem Equiv.cast  (h₁ : Expr Γ t A = Expr Γ t B) (h₂ : A = B) (e₁ e₂ : Expr Γ t A) : Equiv e₁ e₂ →
   Equiv (cast h₁ e₁) (cast h₁ e₂) := by
@@ -733,16 +737,16 @@ theorem Expr.subst_and_lift_lift (σ : Sub Γ Δ) : Expr.subst (Sub.and σ) ((t.
   case app ih₁ ih₂ | and_intro ih₁ ih₂ => exact ⟨ih₁ _, ih₂ _⟩
 
 end CPS
--- #exit
-modular (name := `CPSFix)
+
+modular CPSFix
   namespace CPSFix
 
-  inductive Tag extends CPS.Tag
+  mod inductive Tag extends CPS.Tag
   open Tag
 
-  inductive PreTy extends CPS.PreTy
+  mod inductive PreTy extends CPS.PreTy
 
-  inductive PreTy.Equiv extends CPS.PreTy.Equiv
+  mod inductive PreTy.Equiv extends CPS.PreTy.Equiv
 
   attribute [grind .] PreTy.Equiv.not_not PreTy.Equiv.not PreTy.Equiv.times PreTy.Equiv.refl PreTy.Equiv.symm
 
@@ -768,7 +772,7 @@ modular (name := `CPSFix)
 
   mod def Expr._proof_1 extends CPS.Expr._proof_1
 
-  inductive Expr extends CPS.Expr where
+  mod inductive Expr extends CPS.Expr where
       | fix : Expr (A::A.not::Γ) exp () → Expr Γ val A.not
 
   -- TODO add fix
@@ -804,7 +808,7 @@ modular (name := `CPSFix)
     matcher match_3 with
       | _, _, .fix e => .fix (Expr.subst σ.lift.lift e)
 
-  inductive Equiv extends CPS.Equiv where
+  mod inductive Equiv extends CPS.Equiv where
     | fix : Equiv e e' → Equiv (.fix e) (.fix e')
     | fix_beta : Equiv (.app (.fix e) v) (e.subst (Sub.id |>.snoc (.fix e) |>.snoc v))
 
@@ -993,17 +997,18 @@ modular (name := `CPSFix)
         rfl
 
 end CPSFix
--- #exit
-modular (name := `CPSNat)
+modular end CPSFix
+
+modular CPSNat
   namespace CPSNat
 
-  inductive Tag extends CPS.Tag
+  mod inductive Tag extends CPS.Tag
   open Tag
 
-  inductive PreTy extends CPS.PreTy where
+  mod inductive PreTy extends CPS.PreTy where
     | nat
 
-  inductive PreTy.Equiv extends CPS.PreTy.Equiv
+  mod inductive PreTy.Equiv extends CPS.PreTy.Equiv
 
   attribute [grind .] PreTy.Equiv.not_not PreTy.Equiv.not PreTy.Equiv.times PreTy.Equiv.refl PreTy.Equiv.symm
 
@@ -1031,7 +1036,7 @@ modular (name := `CPSNat)
 
   mod def Expr._proof_1 extends CPS.Expr._proof_1
 
-  inductive Expr extends CPS.Expr where
+  mod inductive Expr extends CPS.Expr where
     | Z : Expr Γ val .nat
     | S : Expr Γ val .nat → Expr Γ val .nat
     | nat_match : Expr Γ exp () → Expr (Ty.nat::Γ) exp () → Expr Γ val Ty.nat.not
@@ -1071,7 +1076,7 @@ modular (name := `CPSNat)
       | _, _, .S n => .S (Expr.subst σ n)
       | _, _, .nat_match P0 PS => .nat_match (Expr.subst σ P0) (Expr.subst σ.lift PS)
 
-  inductive Equiv extends CPS.Equiv where
+  mod inductive Equiv extends CPS.Equiv where
     | S : Equiv n k → Equiv (.S n) (.S k)
     | nat_match : Equiv P0 P0' → Equiv PS PS' → Equiv (.nat_match P0 PS) (.nat_match P0' PS')
     | match_zero : Equiv (.app (.nat_match P0 PS) .Z) P0
@@ -1276,18 +1281,19 @@ modular (name := `CPSNat)
         constructor
         · apply ih₁
         · rfl
-end CPSNat
 
--- #exit
-modular (name := `CPSFixNat)
+end CPSNat
+modular end CPSNat
+
+modular CPSFixNat
   namespace CPSFixNat
 
-  inductive Tag extends CPSFix.Tag, CPSNat.Tag
+  mod inductive Tag extends CPSFix.Tag, CPSNat.Tag
   open Tag
 
-  inductive PreTy extends CPSFix.PreTy, CPSNat.PreTy
+  mod inductive PreTy extends CPSFix.PreTy, CPSNat.PreTy
 
-  inductive PreTy.Equiv extends CPSFix.PreTy.Equiv, CPSNat.PreTy.Equiv
+  mod inductive PreTy.Equiv extends CPSFix.PreTy.Equiv, CPSNat.PreTy.Equiv
 
   attribute [grind .] PreTy.Equiv.not_not PreTy.Equiv.not PreTy.Equiv.times PreTy.Equiv.refl PreTy.Equiv.symm
 
@@ -1316,7 +1322,7 @@ modular (name := `CPSFixNat)
 
   mod def Expr._proof_1 extends CPSFix.Expr._proof_1, CPSNat.Expr._proof_1
 
-  inductive Expr extends CPSFix.Expr, CPSNat.Expr
+  mod inductive Expr extends CPSFix.Expr, CPSNat.Expr
   mod def Expr.zero._proof_1 extends CPSFix.Expr.zero._proof_1, CPSNat.Expr.zero._proof_1
   mod def Expr.zero._proof_2 extends CPSFix.Expr.zero._proof_2, CPSNat.Expr.zero._proof_2
   mod def Expr.zero extends CPSFix.Expr.zero, CPSNat.Expr.zero
@@ -1346,7 +1352,7 @@ modular (name := `CPSFixNat)
 
   mod def Expr.subst extends CPSFix.Expr.subst, CPSNat.Expr.subst
 
-  inductive Equiv extends CPSFix.Equiv, CPSNat.Equiv
+  mod inductive Equiv extends CPSFix.Equiv, CPSNat.Equiv
 
   mod def Equiv.equiv  extends CPSFix.Equiv.equiv, CPSNat.Equiv.equiv
   mod def Equiv.setoid extends CPSFix.Equiv.setoid, CPSNat.Equiv.setoid
@@ -1473,6 +1479,7 @@ modular (name := `CPSFixNat)
   mod def Expr.subst_and_lift_lift extends CPSFix.Expr.subst_and_lift_lift, CPSNat.Expr.subst_and_lift_lift
 
 end CPSFixNat
+modular end CPSFixNat
 
 namespace STLC
 abbrev Tag.toCPS : Tag → CPS.Tag
@@ -1846,7 +1853,7 @@ theorem STLC.Equiv.toCPS (e e' : Expr Γ t A) (h : Equiv e e') : CPS.Equiv e.toC
   case beta A Γ B e v =>
     sorry
 
-modular (name := `STLCFix.toCPS) (imports := #[`STLCFix, `CPSFix])
+modular STLCFix.toCPS (imports := STLCFix, CPSFix)
   namespace STLCFix
 
   mod def Tag.toCPS extends STLC.Tag.toCPS
@@ -1900,8 +1907,9 @@ modular (name := `STLCFix.toCPS) (imports := #[`STLCFix, `CPSFix])
         sorry
 
 end STLCFix
+modular end STLCFix.toCPS
 
-modular (name := `STLCBool.toCPS) (imports := #[`STLCBool, `CPSNat])
+modular STLCBool.toCPS (imports := STLCBool, CPSNat)
   namespace STLCBool
 
   @[reducible]
@@ -1967,8 +1975,9 @@ modular (name := `STLCBool.toCPS) (imports := #[`STLCBool, `CPSNat])
           assumption
 
 end STLCBool
+modular end STLCBool.toCPS
 
-modular (name := `STLCFixBool.toCPS) (imports := #[`STLCFixBool, `CPSFixNat])
+modular STLCFixBool.toCPS (imports := STLCFixBool, CPSFixNat)
   namespace STLCFixBool
 
   @[reducible]
