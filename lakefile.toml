@@ -16,10 +16,10 @@ git = "https://github.com/leanprover-community/aesop"
 rev = "master"
 
 [[require]]
-name = "LeanALaCarte"
+name = "Gemel"
 scope = "arthur-adjedj"
-git = "https://github.com/arthur-adjedj/LeanALaCarte"
-rev = "d2d90d8d08e2056a277f5ac69b3ed3f4c6cd8680"
+git = "https://github.com/arthur-adjedj/Gemel"
+rev = "main"
 
 [[require]]
 name = "mathlib"

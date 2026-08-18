@@ -1,8 +1,6 @@
 import Lean.PrettyPrinter.Delaborator.Basic
-import LeanALaCarte
+import Gemel
 import Mathlib.Data.Quot
-import Mathlib.Tactic.Convert
-import Mathlib.Tactic.GRewrite.Elab
 import Batteries.Tactic.GeneralizeProofs
 set_option inductive.autoPromoteIndices false
 -- TODO better syntax for match extensions
@@ -99,7 +97,7 @@ namespace STLC
 
   @[reducible]
   mod def Tag.Data extends Base.Tag.Data where
-    matcher match_1 with
+    extend match_1 with
       | .exp => Ty
 
   @[reducible]
@@ -127,7 +125,7 @@ namespace STLC
 
   mod def Expr.ren._proof_1 extends Base.Expr.ren._proof_1 where
   mod def Expr.ren extends Base.Expr.ren where
-    matcher match_1 with
+    extend match_1 with
     | _, _, .ret v => .ret (Expr.ren r v)
     | _, _, .lam e => .lam (Expr.ren r.lift e)
     | _, _, .app f t => .app (Expr.ren r f) (Expr.ren r t)
@@ -145,7 +143,7 @@ namespace STLC
   mod def Sub.lift_succ extends Base.Sub.lift_succ
 
   mod def Expr.subst extends Base.Expr.subst where
-    matcher match_1 with
+    extend match_1 with
       | _, _, .ret v => .ret (Expr.subst σ v)
       | _, _, .lam f => .lam (Expr.subst σ.lift f)
       | _, _, .app f t => .app (Expr.subst σ f) (Expr.subst σ t)
@@ -189,7 +187,7 @@ modular STLCFix
   mod def Ren.wk extends STLC.Ren.wk
   mod def Expr.ren._proof_1 extends STLC.Expr.ren._proof_1
   mod def Expr.ren extends STLC.Expr.ren where
-    matcher match_4 with
+    extend match_4 with
       | _, _, .fix e => .fix (Expr.ren r.lift.lift e)
 
   mod def Expr.lift extends STLC.Expr.lift
@@ -201,7 +199,7 @@ modular STLCFix
   mod def Sub.lift extends STLC.Sub.lift
 
   mod def Expr.subst extends STLC.Expr.subst where
-    matcher match_4 with
+    extend match_4 with
       | _, _, .fix e => .fix (Expr.subst σ.lift.lift e)
 
   mod inductive Equiv extends STLC.Equiv where
@@ -241,7 +239,7 @@ modular STLCBool
   mod def Ren.wk extends STLC.Ren.wk
   mod def Expr.ren._proof_1 extends STLC.Expr.ren._proof_1
   mod def Expr.ren extends STLC.Expr.ren where
-    matcher match_4 with
+    extend match_4 with
       | _, _, .true => .true
       | _, _, .false => .false
       | _, _, .ite b e₁ e₂ => .ite (Expr.ren r b) (Expr.ren r e₁) (Expr.ren r e₂)
@@ -255,7 +253,7 @@ modular STLCBool
   mod def Sub.lift extends STLC.Sub.lift
 
   mod def Expr.subst extends STLC.Expr.subst where
-    matcher match_4 with
+    extend match_4 with
       | _, _, .true => .true
       | _, _, .false => .false
       | _, _, .ite b e₁ e₂ => .ite (Expr.subst σ b) (Expr.subst σ e₁) (Expr.subst σ e₂)
@@ -363,7 +361,7 @@ modular CPS
 
   @[reducible]
   mod def Tag.Data extends Base.Tag.Data where
-    matcher match_1 with
+    extend match_1 with
       | .exp => Unit
 
   @[reducible]
@@ -393,7 +391,7 @@ modular CPS
 
   mod def Expr.ren._proof_1 extends Base.Expr.ren._proof_1 where
   mod def Expr.ren extends Base.Expr.ren where
-    matcher match_1 with
+    extend match_1 with
     | _, _, .lam e => .lam (Expr.ren r.lift e)
     | _, _, .app f t => .app (Expr.ren r f) (Expr.ren r t)
     | _, _, .and_intro fst snd => .and_intro (Expr.ren r fst) (Expr.ren r snd)
@@ -410,7 +408,7 @@ modular CPS
   mod def Sub.lift extends Base.Sub.lift
 
   mod def Expr.subst extends Base.Expr.subst where
-    matcher match_1 with
+    extend match_1 with
       | _, _, .lam f => .lam (Expr.subst σ.lift f)
       | _, _, .app f t => .app (Expr.subst σ f) (Expr.subst σ t)
       | _, _, .and_intro fst snd => .and_intro (Expr.subst σ fst) (Expr.subst σ snd)
@@ -792,7 +790,7 @@ modular CPSFix
 
   mod def Expr.ren._proof_1 extends CPS.Expr.ren._proof_1 where
   mod def Expr.ren extends CPS.Expr.ren where
-    matcher match_3 with
+    extend match_3 with
       | _, _, .fix e => .fix (Expr.ren r.lift.lift e)
 
   mod def Expr.lift extends CPS.Expr.lift
@@ -805,7 +803,7 @@ modular CPSFix
   mod def Sub.lift extends CPS.Sub.lift
 
   mod def Expr.subst extends CPS.Expr.subst where
-    matcher match_3 with
+    extend match_3 with
       | _, _, .fix e => .fix (Expr.subst σ.lift.lift e)
 
   mod inductive Equiv extends CPS.Equiv where
@@ -1056,7 +1054,7 @@ modular CPSNat
 
   mod def Expr.ren._proof_1 extends CPS.Expr.ren._proof_1 where
   mod def Expr.ren extends CPS.Expr.ren where
-    matcher match_3 with
+    extend match_3 with
       | _, _, .Z => .Z
       | _, _, .S n => .S (Expr.ren r n)
       | _, _, .nat_match P0 PS => .nat_match (Expr.ren r P0) (Expr.ren r.lift PS)
@@ -1071,7 +1069,7 @@ modular CPSNat
   mod def Sub.lift extends CPS.Sub.lift
 
   mod def Expr.subst extends CPS.Expr.subst where
-    matcher match_3 with
+    extend match_3 with
       | _, _, .Z => .Z
       | _, _, .S n => .S (Expr.subst σ n)
       | _, _, .nat_match P0 PS => .nat_match (Expr.subst σ P0) (Expr.subst σ.lift PS)
@@ -1880,7 +1878,7 @@ modular STLCFix.toCPS (imports := STLCFix, CPSFix)
   mod def Expr.toCPS._proof_3 extends STLC.Expr.toCPS._proof_3
 
   mod def Expr.toCPS extends STLC.Expr.toCPS where
-    matcher match_1 with
+    extend match_1 with
       | _, _, .fix e => .fix ((Expr.toCPS e).subst (CPSFix.Sub.and CPSFix.Sub.id))
 
   @[simp]
@@ -1917,7 +1915,7 @@ modular STLCBool.toCPS (imports := STLCBool, CPSNat)
 
   @[reducible]
   mod def Ty.toCPS extends STLC.Ty.toCPS where
-    matcher match_1 with
+    extend match_1 with
       | .bool => .nat
 
   mod def Ctx.toCPS extends STLC.Ctx.toCPS
@@ -1939,7 +1937,7 @@ modular STLCBool.toCPS (imports := STLCBool, CPSNat)
   mod def Expr.toCPS._proof_3 extends STLC.Expr.toCPS._proof_3
 
   mod def Expr.toCPS extends STLC.Expr.toCPS where
-    matcher match_1 with
+    extend match_1 with
       | _, _, .false => .Z
       | _, _, .true => CPSNat.Expr.Z.S
       | _, _, .ite b pt pf => (CPSNat.Expr.nat_match (Expr.toCPS pf) (Expr.toCPS pt).lift).app (Expr.toCPS b).lift
