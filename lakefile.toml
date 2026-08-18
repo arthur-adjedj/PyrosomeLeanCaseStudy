@@ -1,13 +1,9 @@
-name = "PyroLeanExamples"
+name = "PyroLean"
 version = "0.1.0"
-defaultTargets = ["pyroleanexamples"]
+defaultTargets = ["PyroLean"]
 
 [[lean_lib]]
-name = "PyroLeanExamples"
-
-[[lean_exe]]
-name = "pyroleanexamples"
-root = "Main"
+name = "PyroLean"
 
 [[require]]
 name = "aesop"
